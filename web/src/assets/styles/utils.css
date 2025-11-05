@@ -1,0 +1,10 @@
+.page {
+  width: 100%;
+  max-width: 100dvw;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-x: hidden;
+  margin-top: 30px;
+}

@@ -1,0 +1,33 @@
+{
+    "compilerOptions": {
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "target": "ES2023",
+        "sourceMap": true,
+        "outDir": "dist",
+        "baseUrl": "./",
+        "paths": {
+          "@/*": ["./src/*"],
+          "@routes/*": ["./src/routes/*"],
+          "@controllers/*": ["./src/controllers/*"]
+        },
+        "plugins": [
+            {
+                "transform": "typescript-transform-paths"
+            },
+            {
+                "transform": "typescript-transform-paths",
+                "afterDeclarations": true
+            }
+        ],
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true
+    },
+    "ts-node": {
+        "transpileOnly": true,
+        "files": true,
+        "experimentalResolver": true,
+        "experimentalSpecifierResolution": "node"
+    },
+    "include": ["src/**/*"]
+}
