@@ -31,3 +31,11 @@
   font-weight: 500;
   color: rgb(19, 19, 19);
 }
+
+.login {
+  background-color: black;
+  color: white;
+  padding: 0.4rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 500;
+}

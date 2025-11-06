@@ -1,0 +1,50 @@
+.footerContainer {
+    display: flex;
+    width: 100dvw;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    min-height: 200px;
+    margin-top: 3rem;
+}
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    width: 1024px;
+    max-width: 100%;
+}
+
+.brand {
+    display: flex;
+    flex-direction: column;
+    max-width: 35%;
+    gap: 0.75rem;
+}
+
+.logo {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: rgb(16, 16, 16);
+}
+
+.sectionTitle {
+    font-weight: 650;
+    font-size: 1rem;
+    color: black;
+}
+
+
+.bottomBar {
+    width: 1024px;
+    max-width: 100%;
+    padding-top: 3rem;
+    padding-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.socialContainer {
+    display: flex;
+    gap: 1.5rem;
+}

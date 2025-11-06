@@ -5,7 +5,7 @@ export default function Navbar() {
     return (
         <div className={styles.navbarContainer}>
             <div className={styles.navbar}>
-                <div className={styles.logo}>Strand</div>
+                <Link to="/" className={styles.logo}>Strand</Link>
                 <div className={styles.links}>
                     <Link to="/pricing" className={styles.link}>Pricing</Link>
                     <Link to="/demo" className={styles.link}>Demo</Link>
