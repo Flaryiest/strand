@@ -1,0 +1,18 @@
+import styles from "./navbar.module.css"
+import { Link } from 'react-router-dom';
+
+export default function Navbar() {
+    return (
+        <div className={styles.navbarContainer}>
+            <div className={styles.navbar}>
+                <div className={styles.logo}>Strand</div>
+                <div className={styles.links}>
+                    <Link to="/pricing" className={styles.link}>Pricing</Link>
+                    <Link to="/demo" className={styles.link}>Demo</Link>
+                    <Link to="/login" className={styles.link}>Login</Link>
+
+                </div>
+            </div>
+        </div>
+    )
+}

@@ -1,0 +1,33 @@
+.pageContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.page {
+    width: 1024px;
+    max-width: 100%;
+}
+
+.hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin-top: 4rem;
+}
+
+.title {
+    font-size: 4rem;
+    color: rgb(43, 43, 43);
+    font-weight: 600;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: rgb(43, 43, 43);
+    margin-top: 0.5rem;
+    margin-bottom: 2rem;
+}
