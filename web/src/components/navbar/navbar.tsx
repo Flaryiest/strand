@@ -9,7 +9,7 @@ export default function Navbar() {
                 <div className={styles.links}>
                     <Link to="/pricing" className={styles.link}>Pricing</Link>
                     <Link to="/demo" className={styles.link}>Demo</Link>
-                    <Link to="/login" className={styles.link}>Login</Link>
+                    <Link to="/login" className={`${styles.link} ${styles.login}`}>Login</Link>
 
                 </div>
             </div>

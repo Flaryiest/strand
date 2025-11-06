@@ -26,3 +26,8 @@
   align-items: center;
   gap: 2rem;
 }
+
+.link {
+  font-weight: 500;
+  color: rgb(19, 19, 19);
+}
