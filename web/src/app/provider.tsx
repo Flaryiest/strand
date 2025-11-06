@@ -5,5 +5,5 @@ interface AppProviderProps {
 }
 
 export default function AppProvider({ children }: AppProviderProps) {
-  return <></>;
+  return <>{children}</>;
 }
