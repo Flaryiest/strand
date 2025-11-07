@@ -23,9 +23,10 @@ export default function IndexPage() {
           
             <div className={styles.featureColumnOne}>
               <div className={styles.featureOne}>
-              <div className={styles.featureOneTitle}>
-                <h4>Describe your ideal trip</h4>
-                <p>We'll do the rest. Combing through maps, reddit threads and much more for reviews, price, and the optimal distance.</p>
+                <img src="/landing/journey.png" className={styles.featureImage}/>
+              <div className={styles.featureOneText}>
+                <h4 className={styles.featureOneTitle}>Describe your ideal trip</h4>
+                <p className={styles.featureOneDescription}>We'll do the rest. Combing through maps, reddit threads and much more for reviews, price, and the optimal distance.</p>
                 </div>
               </div>
             
