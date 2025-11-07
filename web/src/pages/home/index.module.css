@@ -36,7 +36,11 @@
 
 .heroImage {
     max-width: 100%;
-    width: 75dvw;
+    width: 1024px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    box-sizing: border-box;
+    flex: 1;
     border-radius: 2rem;
 }
 
@@ -49,4 +53,60 @@
     text-decoration: none;
     margin-bottom: 2rem;
     box-shadow: 0px 4px 3px rgb(145, 145, 145);
+}
+
+
+.featureSection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 5rem;
+    width: 100%;   
+}
+
+.featureTitle {
+    font-size: 2rem;
+    font-weight: 600;
+    color: rgb(34, 34, 34);
+    margin-top: 3rem;
+    margin-bottom: 1.5rem;
+}
+
+.featureSubtitle {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: rgb(70, 70, 70);
+    margin-bottom: 2.5rem;
+    text-align: center;
+}
+
+.featureCardContainer {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    gap: 1rem;
+}
+
+.featureColumnOne {
+    display: flex;
+    width: 100%;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+}
+
+.featureOne {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.featureColumnTwo {
+     display: flex;
+    width: 100%;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
 }

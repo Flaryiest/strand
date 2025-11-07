@@ -6,12 +6,13 @@
     flex-direction: column;
     min-height: 200px;
     margin-top: 3rem;
+    padding-top: 8rem;
 }
 
 .footer {
     display: flex;
     justify-content: space-between;
-    width: 1024px;
+    width: 60dvw;
     max-width: 100%;
 }
 
@@ -36,7 +37,7 @@
 
 
 .bottomBar {
-    width: 1024px;
+    width: 60dvw;
     max-width: 100%;
     padding-top: 3rem;
     padding-bottom: 2rem;
