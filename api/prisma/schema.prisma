@@ -13,8 +13,21 @@ model User {
   firstName String?
   lastName  String?
   location  String?
-  credits  Int      @default(0)
+  plan      Plan @default(Basic)
+  credits   Int     @default(0)
   password  String
 }
 
+model Strand {
+  id        Int      @id @default(autoincrement())
+  uid       String
+  prompt    String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
 
+enum Plan {
+  Basic
+  Premium
+  Pro
+}

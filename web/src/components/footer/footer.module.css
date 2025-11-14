@@ -49,3 +49,23 @@
     display: flex;
     gap: 1.5rem;
 }
+
+@media (max-width: 768px) {
+    .footer {
+        flex-direction: column;
+        gap: 3rem;
+        align-items: center;
+    }
+
+    .brand {
+        max-width: 100%;
+        align-items: center;
+        text-align: center;
+    }
+
+    .bottomBar {
+        flex-direction: column;
+        gap: 1.5rem;
+        align-items: center;
+    }
+}

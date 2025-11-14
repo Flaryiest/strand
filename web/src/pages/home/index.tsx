@@ -33,14 +33,43 @@ export default function IndexPage() {
           </div>
           <div className={styles.featureColumnTwo}>
             <div className={styles.featureTwo}>
-              <div className={styles.featureTwoTitle}>
-                <h4>Share with friends</h4>
+              <div className={styles.featureTwoContent}>
+                <h4 className={styles.featureTwoTitle}>Share with friends</h4>
+                <p className={styles.featureTwoDescription}>Collaborate on plans and get everyone's input. Share your itinerary instantly and make group decisions effortless.</p>
               </div>
+              <svg className={styles.featureTwoImage} viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="40" cy="40" r="22" fill="rgba(0,0,0,0.08)" />
+                <circle cx="100" cy="40" r="22" fill="rgba(0,0,0,0.12)" />
+                <circle cx="160" cy="40" r="22" fill="rgba(0,0,0,0.08)" />
+                <circle cx="40" cy="40" r="16" fill="rgba(0,0,0,0.15)" />
+                <circle cx="100" cy="40" r="16" fill="rgba(0,0,0,0.2)" />
+                <circle cx="160" cy="40" r="16" fill="rgba(0,0,0,0.15)" />
+                <line x1="62" y1="40" x2="78" y2="40" stroke="rgba(0,0,0,0.25)" strokeWidth="3" strokeLinecap="round"/>
+                <line x1="122" y1="40" x2="138" y2="40" stroke="rgba(0,0,0,0.25)" strokeWidth="3" strokeLinecap="round"/>
+                <circle cx="40" cy="40" r="6" fill="white" opacity="0.8"/>
+                <circle cx="100" cy="40" r="6" fill="white" opacity="0.8"/>
+                <circle cx="160" cy="40" r="6" fill="white" opacity="0.8"/>
+              </svg>
             </div>
             <div className={styles.featureThree}>
-              <div className={styles.featureThreeTitle}>
-                <h4>Enjoy your journey</h4>
+              <div className={styles.featureThreeContent}>
+                <h4 className={styles.featureThreeTitle}>Enjoy your journey</h4>
+                <p className={styles.featureThreeDescription}>Hit the road with confidence. Your personalized plan adapts to your pace, preferences, and spontaneous discoveries.</p>
               </div>
+              <svg className={styles.featureThreeImage} viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 50 L50 25 L80 40 L110 20 L140 35 L170 30" stroke="rgba(0,0,0,0.12)" strokeWidth="5" fill="none" strokeLinecap="round"/>
+                <path d="M20 50 L50 25 L80 40 L110 20 L140 35 L170 30" stroke="rgba(0,0,0,0.2)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                <circle cx="20" cy="50" r="8" fill="rgba(0,0,0,0.15)" />
+                <circle cx="50" cy="25" r="8" fill="rgba(0,0,0,0.2)" />
+                <circle cx="80" cy="40" r="8" fill="rgba(0,0,0,0.15)" />
+                <circle cx="110" cy="20" r="8" fill="rgba(0,0,0,0.2)" />
+                <circle cx="140" cy="35" r="8" fill="rgba(0,0,0,0.15)" />
+                <circle cx="170" cy="30" r="8" fill="rgba(0,0,0,0.2)" />
+                <circle cx="20" cy="50" r="3" fill="white" opacity="0.9"/>
+                <circle cx="50" cy="25" r="3" fill="white" opacity="0.9"/>
+                <circle cx="110" cy="20" r="3" fill="white" opacity="0.9"/>
+                <circle cx="170" cy="30" r="3" fill="white" opacity="0.9"/>
+              </svg>
             </div>
           </div>
         </div>
