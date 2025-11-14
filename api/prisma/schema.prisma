@@ -12,5 +12,9 @@ model User {
   email     String  @unique
   firstName String?
   lastName  String?
+  location  String?
+  credits  Int      @default(0)
   password  String
 }
+
+
