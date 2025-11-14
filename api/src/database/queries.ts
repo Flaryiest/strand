@@ -13,15 +13,7 @@ async function signUp(data: Prisma.UserCreateInput) {
 async function getUserInfo(email: string) {
   try {
     return await prisma.user.findUnique({
-      where: { email },
-      include: {
-        skills: true,
-        tasks: {
-          include: {
-            tags: true
-          }
-        }
-      }
+      where: { email }
     });
   } catch (err) {
     console.log(err);
