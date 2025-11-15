@@ -1,81 +1,66 @@
-import { useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
-
-declare global {
-  interface Window {
-    google: {
-      accounts: {
-        id: {
-          initialize: (config: any) => void;
-          prompt: () => void;
-          renderButton: (element: HTMLElement, config: any) => void;
-        };
-      };
-    };
-  }
-}
 
 export const useGoogleAuth = () => {
   const navigate = useNavigate();
 
-  const handleCredentialResponse = useCallback(async (response: any) => {
-    console.log('Google credential received:', response);
-    const result = await useAuthStore.getState().googleLogin(response.credential);
-    if (result.success) {
-      navigate('/chat');
-    } else {
-      console.error('Google login failed:', result.error);
-    }
-  }, [navigate]);
+  const signInWithGoogle = useCallback(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const redirectUri = `${window.location.origin}/auth/google/callback`;
+    
+    // OAuth2 params for standard popup flow
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid email profile',
+      access_type: 'offline',
+      prompt: 'select_account', // Always show account selection
+    });
 
-  useEffect(() => {
-    // Initialize Google Sign-In when SDK loads
-    const initializeGoogleSignIn = () => {
-      if (window.google) {
-        console.log('Initializing Google Sign-In with client ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: handleCredentialResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-        console.log('Google Sign-In initialized');
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+    
+    // Open popup window (center of screen)
+    const width = 500;
+    const height = 600;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+    
+    const popup = window.open(
+      authUrl,
+      'GoogleSignIn',
+      `width=${width},height=${height},left=${left},top=${top},toolbar=0,scrollbars=1,status=1,resizable=1`
+    );
+
+    // Listen for the callback
+    const handleMessage = async (event: MessageEvent) => {
+      // Verify origin for security
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+        const { code } = event.data;
+        
+        // Exchange code for token via backend
+        const result = await useAuthStore.getState().googleLogin(code);
+        if (result.success) {
+          navigate('/chat');
+        }
+        
+        window.removeEventListener('message', handleMessage);
       }
     };
 
-    // Check if Google SDK is already loaded
-    if (window.google) {
-      initializeGoogleSignIn();
-    } else {
-      console.log('Waiting for Google SDK to load...');
-      // Wait for SDK to load
-      const checkGoogleLoaded = setInterval(() => {
-        if (window.google) {
-          console.log('Google SDK loaded');
-          initializeGoogleSignIn();
-          clearInterval(checkGoogleLoaded);
-        }
-      }, 100);
+    window.addEventListener('message', handleMessage);
 
-      return () => clearInterval(checkGoogleLoaded);
-    }
-  }, [handleCredentialResponse]);
-
-  const signInWithGoogle = useCallback(() => {
-    console.log('Sign in with Google clicked');
-    if (window.google) {
-      try {
-        // Use prompt() to show the One Tap UI
-        window.google.accounts.id.prompt();
-        console.log('Google prompt initiated');
-      } catch (error) {
-        console.error('Error showing Google prompt:', error);
+    // Clean up if popup is closed without completing
+    const checkPopupClosed = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(checkPopupClosed);
+        window.removeEventListener('message', handleMessage);
       }
-    } else {
-      console.error('Google SDK not loaded yet');
-    }
-  }, []);
+    }, 500);
+  }, [navigate]);
 
   return { signInWithGoogle };
 };

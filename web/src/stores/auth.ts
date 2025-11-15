@@ -116,7 +116,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
 
-  googleLogin: async (credential: string) => {
+  googleLogin: async (code: string) => {
     set({ isLoading: true, error: null });
 
     try {
@@ -126,7 +126,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ credential }),
+        body: JSON.stringify({ 
+          code,
+          redirect_uri: `${window.location.origin}/auth/google/callback`
+        }),
       });
 
       if (response.ok) {

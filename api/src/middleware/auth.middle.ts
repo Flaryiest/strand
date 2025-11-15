@@ -4,7 +4,11 @@ import { OAuth2Client } from 'google-auth-library';
 import * as db from '../database/queries.js';
 import { Request, Response } from 'express';
 
-const googleClient = new OAuth2Client(process.env.OAUTH_CLIENT_ID);
+const googleClient = new OAuth2Client(
+  process.env.OAUTH_CLIENT_ID,
+  process.env.OAUTH_CLIENT_SECRET,
+  process.env.OAUTH_REDIRECT_URI
+);
 
 declare global {
   namespace Express {
@@ -117,19 +121,39 @@ async function logOut(req: Request, res: Response) {
 
 async function googleAuth(req: Request, res: Response) {
   try {
-    const { credential } = req.body;
+    const { credential, code } = req.body;
 
-    if (!credential) {
-      return res.status(400).send('Google credential is required');
+    let payload;
+
+    if (code) {
+      // Handle authorization code flow (standard OAuth popup)
+      const { tokens } = await googleClient.getToken({
+        code,
+        redirect_uri: req.body.redirect_uri || `${req.protocol}://${req.get('host')}/auth/google/callback`
+      });
+
+      if (!tokens.id_token) {
+        return res.status(400).send('No ID token received from Google');
+      }
+
+      const ticket = await googleClient.verifyIdToken({
+        idToken: tokens.id_token,
+        audience: process.env.OAUTH_CLIENT_ID,
+      });
+
+      payload = ticket.getPayload();
+    } else if (credential) {
+      // Handle One Tap flow (backward compatibility)
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.OAUTH_CLIENT_ID,
+      });
+
+      payload = ticket.getPayload();
+    } else {
+      return res.status(400).send('Google credential or code is required');
     }
 
-    // Verify the token with Google
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: process.env.OAUTH_CLIENT_ID,
-    });
-
-    const payload = ticket.getPayload();
     if (!payload) {
       return res.status(400).send('Invalid Google token');
     }
