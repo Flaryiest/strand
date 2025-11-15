@@ -6,15 +6,15 @@ interface AppProviderProps {
 }
 
 export default function AppProvider({ children }: AppProviderProps) {
-  const { verify, isLoading } = useAuth();
+  const { verify, isInitializing } = useAuth();
 
   // Verify authentication on app mount
   useEffect(() => {
     verify();
   }, []);
 
-  // Optional: Show loading screen while verifying
-  if (isLoading) {
+  // Show loading screen only during initial app load
+  if (isInitializing) {
     return (
       <div style={{
         display: 'flex',

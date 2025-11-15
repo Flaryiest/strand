@@ -8,6 +8,7 @@ export const useAuth = () => {
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isLoading = useAuthStore((state) => state.isLoading);
+  const isInitializing = useAuthStore((state) => state.isInitializing);
   const error = useAuthStore((state) => state.error);
   
   const login = useAuthStore((state) => state.login);
@@ -21,6 +22,7 @@ export const useAuth = () => {
     user,
     isAuthenticated,
     isLoading,
+    isInitializing,
     error,
     
     // Actions
@@ -29,5 +31,4 @@ export const useAuth = () => {
     logout,
     verify,
     clearError,
-  };
-};
+  };};

@@ -8,14 +8,17 @@ datasource db {
 }
 
 model User {
-  id        Int     @id @default(autoincrement())
-  email     String  @unique
-  firstName String?
-  lastName  String?
-  location  String?
-  plan      Plan @default(Basic)
-  credits   Int     @default(0)
-  password  String
+  id             Int     @id @default(autoincrement())
+  email          String  @unique
+  firstName      String?
+  lastName       String?
+  location       String?
+  plan           Plan    @default(Basic)
+  credits        Int     @default(0)
+  password       String?
+  googleId       String? @unique
+  profilePicture String?
+  authProvider   String  @default("local")
 }
 
 model Strand {

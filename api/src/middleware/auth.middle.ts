@@ -1,7 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import * as db from '../database/queries.js';
 import { Request, Response } from 'express';
+
+const googleClient = new OAuth2Client(process.env.OAUTH_CLIENT_ID);
 
 declare global {
   namespace Express {
@@ -112,4 +115,81 @@ async function logOut(req: Request, res: Response) {
   res.status(200).send('Logged out');
 }
 
-export { signUp, login, verify, logOut };
+async function googleAuth(req: Request, res: Response) {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).send('Google credential is required');
+    }
+
+    // Verify the token with Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.OAUTH_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) {
+      return res.status(400).send('Invalid Google token');
+    }
+
+    const { sub: googleId, email, given_name, family_name, picture } = payload;
+
+    if (!email) {
+      return res.status(400).send('Email not provided by Google');
+    }
+
+    // Find or create user
+    let user = await db.getUserByGoogleId(googleId);
+
+    if (!user) {
+      // Check if email already exists (user signed up with email/password)
+      const existingUser = await db.getUserInfo(email);
+
+      if (existingUser && typeof existingUser === 'object') {
+        // Link Google account to existing user
+        user = await db.linkGoogleAccount(existingUser.id, googleId, picture);
+      } else {
+        // Create new user
+        user = await db.createGoogleUser({
+          email,
+          googleId,
+          firstName: given_name,
+          lastName: family_name,
+          profilePicture: picture,
+          authProvider: 'google'
+        });
+      }
+    }
+
+    if (!user) {
+      return res.status(500).send('Failed to create or update user');
+    }
+
+    // Create JWT and send cookie
+    const token = jwt.sign(
+      { userInfo: user },
+      process.env.SECRET_KEY,
+      { expiresIn: '7d' }
+    );
+
+    return res
+      .status(200)
+      .cookie('jwt', token, {
+        sameSite: 'none',
+        secure: true,
+        path: '/',
+        httpOnly: true,
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        partitioned: false
+      })
+      .json({ user });
+
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(500).send('Authentication failed');
+  }
+}
+
+export { signUp, login, verify, logOut, googleAuth };

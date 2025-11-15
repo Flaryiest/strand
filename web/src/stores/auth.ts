@@ -7,6 +7,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: false,
+  isInitializing: true,
   error: null,
 
   // Actions
@@ -72,7 +73,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   verify: async () => {
-    set({ isLoading: true });
+    const currentState = useAuthStore.getState();
+    // Only set isLoading if this is not the initial load
+    if (!currentState.isInitializing) {
+      set({ isLoading: true });
+    }
 
     try {
       const response = await fetch(`${baseUrl}/auth/verify`, {
@@ -89,6 +94,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           user: data.user,
           isAuthenticated: true,
           isLoading: false,
+          isInitializing: false,
           error: null,
         });
       } else {
@@ -96,6 +102,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           user: null,
           isAuthenticated: false,
           isLoading: false,
+          isInitializing: false,
         });
       }
     } catch (err) {
@@ -104,7 +111,42 @@ export const useAuthStore = create<AuthStore>((set) => ({
         user: null,
         isAuthenticated: false,
         isLoading: false,
+        isInitializing: false,
       });
+    }
+  },
+
+  googleLogin: async (credential: string) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const response = await fetch(`${baseUrl}/auth/google/callback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ credential }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        set({
+          user: data.user,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        });
+        return { success: true };
+      } else {
+        const errorText = await response.text();
+        set({ error: errorText || 'Google authentication failed', isLoading: false });
+        return { success: false, error: errorText || 'Google authentication failed' };
+      }
+    } catch (err) {
+      const errorMessage = 'Network error. Please try again.';
+      set({ error: errorMessage, isLoading: false });
+      return { success: false, error: errorMessage };
     }
   },
 

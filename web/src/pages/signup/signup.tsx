@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './signup.module.css';
 import { useAuth } from '@/hooks/useAuth';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 
 const carouselSlides = [
   {
@@ -35,7 +36,8 @@ export default function SignupPage() {
   const [localError, setLocalError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
-  const { signup, isLoading, error, clearError } = useAuth();
+  const { signup, login, isLoading, error, clearError } = useAuth();
+  const { signInWithGoogle } = useGoogleAuth();
 
   // Auto-advance carousel
   useEffect(() => {
@@ -77,14 +79,23 @@ export default function SignupPage() {
     });
 
     if (result.success) {
-      // Successfully signed up, redirect to login
-      navigate('/login');
+      // Successfully signed up, now log them in and redirect to chat
+      const loginResult = await login({
+        email: formData.email,
+        password: formData.password
+      });
+      
+      if (loginResult.success) {
+        navigate('/chat');
+      } else {
+        // If auto-login fails, redirect to login page
+        navigate('/login');
+      }
     }
   };
 
   const handleGoogleAuth = () => {
-    // TODO: Implement Google OAuth
-    console.log('Google OAuth authentication');
+    signInWithGoogle();
   };
 
   return (

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './login.module.css';
 import { useAuth } from '@/hooks/useAuth';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 
 const carouselSlides = [
   {
@@ -32,6 +33,7 @@ export default function LoginPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
   const { login, isLoading, error, clearError } = useAuth();
+  const { signInWithGoogle } = useGoogleAuth();
 
   // Auto-advance carousel
   useEffect(() => {
@@ -49,14 +51,13 @@ export default function LoginPage() {
     const result = await login({ email, password });
     
     if (result.success) {
-      // Successfully logged in, redirect to home
-      navigate('/');
+      // Successfully logged in, redirect to chat dashboard
+      navigate('/chat');
     }
   };
 
   const handleGoogleAuth = () => {
-    // TODO: Implement Google OAuth
-    console.log('Google OAuth authentication');
+    signInWithGoogle();
   };
 
   return (
