@@ -21,7 +21,8 @@
             }
         ],
         "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true
+        "allowSyntheticDefaultImports": true,
+        "skipLibCheck": true
     },
     "ts-node": {
         "transpileOnly": true,
