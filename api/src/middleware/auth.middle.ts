@@ -12,23 +12,40 @@ declare global {
 }
 
 async function signUp(req: Request, res: Response) {
-  bcrypt.hash(req.body.password, 10, async function (err, hash) {
-    if (err) {
-      console.error(err, 'error');
-      return res.status(500).send('Internal server error');
+  try {
+    // Validate required fields
+    if (!req.body.email || !req.body.password) {
+      return res.status(400).send('Email and password are required');
     }
-    const response = await db.signUp({
-      email: req.body.email,
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      password: hash
+
+    // Check if user already exists
+    const existingUser = await db.getUserInfo(req.body.email);
+    if (existingUser) {
+      return res.status(409).send('User with this email already exists');
+    }
+
+    // Hash password and create user
+    bcrypt.hash(req.body.password, 10, async function (err, hash) {
+      if (err) {
+        console.error(err, 'error');
+        return res.status(500).send('Internal server error');
+      }
+      const response = await db.signUp({
+        email: req.body.email,
+        firstName: req.body.firstName || null,
+        lastName: req.body.lastName || null,
+        password: hash
+      });
+      if (response) {
+        res.status(201).send('Successfully signed up user');
+      } else {
+        res.status(500).send('Failed to create user');
+      }
     });
-    if (response) {
-      res.status(200).send('Successfully signed up user');
-    } else {
-      res.status(200).send('Failed to sign up user');
-    }
-  });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).send('Internal server error');
+  }
 }
 
 async function login(req: Request, res: Response) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './login.module.css';
+import { baseUrl } from '@/utils/baseUrl';
 
 const carouselSlides = [
   {
@@ -27,7 +28,9 @@ const carouselSlides = [
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // Auto-advance carousel
@@ -41,15 +44,35 @@ export default function LoginPage() {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setIsLoading(true);
     
-    // TODO: Implement email auth flow
-    console.log('Email authentication:', email);
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${baseUrl}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+
+      if (response.ok) {
+        // Successfully logged in, redirect to dashboard or home
+        window.location.href = '/';
+      } else {
+        const errorText = await response.text();
+        setError(errorText || 'Invalid email or password');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+      console.error('Login error:', err);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleGoogleAuth = () => {
@@ -125,6 +148,8 @@ export default function LoginPage() {
 
           {/* Email Form */}
           <form onSubmit={handleEmailSubmit} className={styles.emailForm}>
+            {error && <div className={styles.errorMessage}>{error}</div>}
+            
             <div className={styles.inputGroup}>
               <label htmlFor="email" className={styles.label}>Email address</label>
               <input
@@ -139,18 +164,32 @@ export default function LoginPage() {
               />
             </div>
 
+            <div className={styles.inputGroup}>
+              <label htmlFor="password" className={styles.label}>Password</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className={styles.input}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
             <button 
               type="submit" 
               className={styles.submitButton}
               disabled={isLoading}
             >
-              {isLoading ? 'Loading...' : 'Continue'}
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
 
           {/* Footer */}
           <p className={styles.footerText}>
-            Don't have an account? We'll create one for you.
+            Don't have an account? <Link to="/signup" className={styles.link}>Sign up</Link>
           </p>
         </div>
       </div>
