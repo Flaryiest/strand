@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './signup.module.css';
-import { baseUrl } from '@/utils/baseUrl';
+import { useAuth } from '@/hooks/useAuth';
 
 const carouselSlides = [
   {
@@ -32,10 +32,10 @@ export default function SignupPage() {
     password: '',
     confirmPassword: ''
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
+  const { signup, isLoading, error, clearError } = useAuth();
 
   // Auto-advance carousel
   useEffect(() => {
@@ -51,51 +51,34 @@ export default function SignupPage() {
       ...formData,
       [e.target.name]: e.target.value
     });
-    setError('');
+    setLocalError('');
+    clearError();
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setLocalError('');
+    clearError();
 
     // Validation
     if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
+      setLocalError('Password must be at least 8 characters long');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setLocalError('Passwords do not match');
       return;
     }
 
-    setIsLoading(true);
+    const result = await signup({
+      email: formData.email,
+      password: formData.password
+    });
 
-    try {
-      const response = await fetch(`${baseUrl}/auth/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
-        })
-      });
-
-      if (response.ok) {
-        // Successfully signed up, redirect to login
-        navigate('/login');
-      } else {
-        const errorText = await response.text();
-        setError(errorText || 'Failed to create account');
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-      console.error('Signup error:', err);
-    } finally {
-      setIsLoading(false);
+    if (result.success) {
+      // Successfully signed up, redirect to login
+      navigate('/login');
     }
   };
 
@@ -172,7 +155,7 @@ export default function SignupPage() {
 
             {/* Signup Form */}
             <form onSubmit={handleSignup} className={styles.signupForm}>
-              {error && <div className={styles.errorMessage}>{error}</div>}
+              {(localError || error) && <div className={styles.errorMessage}>{localError || error}</div>}
               
               <div className={styles.inputGroup}>
                 <label htmlFor="email" className={styles.label}>Email address</label>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styles from './login.module.css';
-import { baseUrl } from '@/utils/baseUrl';
+import { useAuth } from '@/hooks/useAuth';
 
 const carouselSlides = [
   {
@@ -29,9 +29,9 @@ const carouselSlides = [
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
+  const navigate = useNavigate();
+  const { login, isLoading, error, clearError } = useAuth();
 
   // Auto-advance carousel
   useEffect(() => {
@@ -44,34 +44,13 @@ export default function LoginPage() {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
+    clearError();
     
-    try {
-      const response = await fetch(`${baseUrl}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          email,
-          password
-        })
-      });
-
-      if (response.ok) {
-        // Successfully logged in, redirect to dashboard or home
-        window.location.href = '/';
-      } else {
-        const errorText = await response.text();
-        setError(errorText || 'Invalid email or password');
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-      console.error('Login error:', err);
-    } finally {
-      setIsLoading(false);
+    const result = await login({ email, password });
+    
+    if (result.success) {
+      // Successfully logged in, redirect to home
+      navigate('/');
     }
   };
 
