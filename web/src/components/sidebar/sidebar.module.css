@@ -1,0 +1,156 @@
+.sidebar {
+  height: 100vh;
+  background-color: #1a1a1a;
+  border-right: 1px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+.sidebar.expanded {
+  width: 240px;
+}
+
+.sidebar.minimized {
+  width: 64px;
+}
+
+.header {
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid #2a2a2a;
+  min-height: 64px;
+}
+
+.toggleButton {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.toggleButton:hover {
+  background-color: #2a2a2a;
+  color: #fff;
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.nav {
+  flex: 1;
+  padding: 1rem 0;
+  overflow-y: auto;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.navItem {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s;
+  text-align: left;
+  font-size: 0.9375rem;
+  border-radius: 0;
+  position: relative;
+}
+
+.navItem:hover {
+  background-color: #2a2a2a;
+  color: #fff;
+}
+
+.navItem.active {
+  background-color: #2a2a2a;
+  color: #fff;
+}
+
+.navItem.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: #4a9eff;
+}
+
+.icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.minimized .label {
+  display: none;
+}
+
+.minimized .navItem {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.minimized .icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Scrollbar styling */
+.nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 3px;
+}
+
+.nav::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
