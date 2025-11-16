@@ -1,0 +1,213 @@
+/* Header */
+.header {
+  background: rgba(0, 0, 0, 0);
+  padding: 1rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.headerContent {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menuButton {
+  display: none;
+  background: transparent;
+  border: none;
+  color: rgb(17, 17, 17);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.menuButton:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .menuButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: rgb(17, 17, 17);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.userSection {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.profileContainer {
+  position: relative;
+  padding: 0.75rem;
+  margin: -0.75rem;
+}
+
+.profileButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.profileButton:hover {
+  opacity: 0.8;
+}
+
+.profileImage {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.profilePlaceholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgb(17, 17, 17);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  right: -0.75rem;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 220px;
+  padding: 0.5rem;
+  padding-top: 1rem;
+  margin-top: -0.5rem;
+  z-index: 1000;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menuSection {
+  padding: 0.5rem;
+}
+
+.menuEmail {
+  font-size: 0.875rem;
+  color: rgb(100, 100, 100);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.menuLabel {
+  color: rgb(100, 100, 100);
+  font-weight: 500;
+}
+
+.menuValue {
+  color: rgb(17, 17, 17);
+  font-weight: 600;
+}
+
+.menuDivider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 0.25rem 0;
+}
+
+.menuButton {
+
+  background: transparent;
+  border: none;
+  padding: 0.75rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  color: rgb(17, 17, 17);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.menuButton:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.menuButton svg {
+  flex-shrink: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .headerContent {
+    gap: 0.75rem;
+  }
+
+  .logo {
+    font-size: 1.25rem;
+  }
+
+  .profileImage,
+  .profilePlaceholder {
+    width: 30px;
+    height: 30px;
+    font-size: 0.75rem;
+  }
+
+  .dropdownMenu {
+    right: -0.75rem;
+  }
+}

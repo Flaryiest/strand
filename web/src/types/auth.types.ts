@@ -6,6 +6,7 @@ export interface User {
   location?: string | null;
   plan: 'Basic' | 'Premium' | 'Pro';
   credits: number;
+  profilePicture?: string | null;
 }
 
 export interface AuthState {

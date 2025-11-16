@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import Sidebar from '@/components/sidebar/sidebar';
+import Topbar from '@/components/topbar/topbar';
 import styles from './chat.module.css';
 
 export default function ChatPage() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [activeView, setActiveView] = useState('chat');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -16,9 +19,29 @@ export default function ChatPage() {
     }
   }, [isLoading, isAuthenticated, navigate]);
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+  useEffect(() => {
+    // Check if mobile on mount and resize
+    const checkMobile = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false); // Close sidebar by default on mobile
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const closeSidebar = () => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
   };
 
   if (isLoading) {
@@ -85,23 +108,17 @@ export default function ChatPage() {
 
   return (
     <div className={styles.pageContainer}>
-      <Sidebar items={sidebarItems} />
-      <div className={styles.contentWrapper}>
-      {/* Header */}
-      <header className={styles.header}>
-        <div className={styles.headerContent}>
-          <h1 className={styles.logo}>Strand</h1>
-          <div className={styles.userSection}>
-            <div className={styles.userInfo}>
-              <span className={styles.userEmail}>{user?.email}</span>
-              <span className={styles.userPlan}>{user?.plan} Plan</span>
-            </div>
-            <button onClick={handleLogout} className={styles.logoutButton}>
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+      <Sidebar 
+        items={sidebarItems} 
+        isOpen={sidebarOpen} 
+        onToggle={toggleSidebar}
+        isMobile={isMobile}
+      />
+      {isMobile && sidebarOpen && (
+        <div className={styles.backdrop} onClick={closeSidebar} />
+      )}
+      <div className={`${styles.contentWrapper} ${sidebarOpen && !isMobile ? styles.sidebarExpanded : !sidebarOpen && !isMobile ? styles.sidebarMinimized : ''}`}>
+      <Topbar onMenuClick={toggleSidebar} showMenuButton={isMobile} />
 
       {/* Main Content */}
       <main className={styles.mainContent}>

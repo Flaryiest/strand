@@ -4,11 +4,11 @@
   border-right: 1px solid #2a2a2a;
   display: flex;
   flex-direction: column;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 10;
+  z-index: 1000;
 }
 
 .sidebar.expanded {
@@ -17,6 +17,18 @@
 
 .sidebar.minimized {
   width: 64px;
+}
+
+/* Mobile overlay mode */
+@media (max-width: 768px) {
+  .sidebar.mobile {
+    width: 240px !important;
+    transform: translateX(-100%);
+  }
+  
+  .sidebar.mobile.expanded {
+    transform: translateX(0);
+  }
 }
 
 .header {
