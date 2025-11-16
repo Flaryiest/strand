@@ -87,9 +87,10 @@
   padding: 0 2rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   gap: 3rem;
+  padding-top: 22vh;
 }
 
 /* Hero Section */

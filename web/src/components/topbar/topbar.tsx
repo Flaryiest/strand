@@ -38,7 +38,7 @@ export default function Topbar({
       <div className={styles.headerContent}>
         {showMenuButton && onMenuClick && (
           <button
-            className={styles.menuButton}
+            className={styles.topbarMenuButton}
             onClick={onMenuClick}
             aria-label="Toggle menu"
           >

@@ -157,7 +157,7 @@ export default function ChatPage() {
         {/* Main Content */}
         <main className={styles.mainContent}>
           <div className={styles.heroSection}>
-            <h1 className={styles.heroGreeting}>Good Afternoon</h1>
+            <h1 className={styles.heroGreeting}>Explore the World.</h1>
           </div>
 
           <div className={styles.inputSection}>
