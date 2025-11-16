@@ -37,7 +37,7 @@ export default function Sidebar({ items, isOpen, onToggle, isMobile }: SidebarPr
             )}
           </button>
         )}
-        {isOpen && <h2 className={styles.title}>Menu</h2>}
+        {isOpen && <h1 className={styles.logo}>Strand</h1>}
       </div>
 
       <nav className={styles.nav}>

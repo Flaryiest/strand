@@ -48,12 +48,21 @@
   color: rgb(17, 17, 17);
   letter-spacing: -0.02em;
   margin: 0;
+  transition: opacity 0.3s ease;
+}
+
+.logo.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .userSection {
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  box-sizing: border-box;
+  max-height: 36.8px;
+
 }
 
 .profileContainer {

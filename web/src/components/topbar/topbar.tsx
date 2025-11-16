@@ -6,9 +6,10 @@ import styles from './topbar.module.css';
 interface TopbarProps {
   onMenuClick?: () => void;
   showMenuButton?: boolean;
+  sidebarOpen?: boolean;
 }
 
-export default function Topbar({ onMenuClick, showMenuButton = false }: TopbarProps) {
+export default function Topbar({ onMenuClick, showMenuButton = false, sidebarOpen = false }: TopbarProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -40,7 +41,7 @@ export default function Topbar({ onMenuClick, showMenuButton = false }: TopbarPr
             </svg>
           </button>
         )}
-        <h1 className={styles.logo}>Strand</h1>
+        <h1 className={`${styles.logo} ${sidebarOpen && !showMenuButton ? styles.hidden : ''}`}>Strand</h1>
         <div className={styles.userSection}>
           <div 
             className={styles.profileContainer}

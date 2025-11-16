@@ -118,7 +118,7 @@ export default function ChatPage() {
         <div className={styles.backdrop} onClick={closeSidebar} />
       )}
       <div className={`${styles.contentWrapper} ${sidebarOpen && !isMobile ? styles.sidebarExpanded : !sidebarOpen && !isMobile ? styles.sidebarMinimized : ''}`}>
-      <Topbar onMenuClick={toggleSidebar} showMenuButton={isMobile} />
+      <Topbar onMenuClick={toggleSidebar} showMenuButton={isMobile} sidebarOpen={sidebarOpen} />
 
       {/* Main Content */}
       <main className={styles.mainContent}>
