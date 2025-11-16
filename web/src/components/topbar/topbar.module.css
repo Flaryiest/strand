@@ -62,7 +62,6 @@
   flex-shrink: 0;
   box-sizing: border-box;
   max-height: 36.8px;
-
 }
 
 .profileContainer {
@@ -197,7 +196,6 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-
   .profileContainer {
     margin-right: 0rem;
   }

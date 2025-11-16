@@ -129,7 +129,9 @@ async function googleAuth(req: Request, res: Response) {
       // Handle authorization code flow (standard OAuth popup)
       const { tokens } = await googleClient.getToken({
         code,
-        redirect_uri: req.body.redirect_uri || `${req.protocol}://${req.get('host')}/auth/google/callback`
+        redirect_uri:
+          req.body.redirect_uri ||
+          `${req.protocol}://${req.get('host')}/auth/google/callback`
       });
 
       if (!tokens.id_token) {
@@ -138,7 +140,7 @@ async function googleAuth(req: Request, res: Response) {
 
       const ticket = await googleClient.verifyIdToken({
         idToken: tokens.id_token,
-        audience: process.env.OAUTH_CLIENT_ID,
+        audience: process.env.OAUTH_CLIENT_ID
       });
 
       payload = ticket.getPayload();
@@ -146,7 +148,7 @@ async function googleAuth(req: Request, res: Response) {
       // Handle One Tap flow (backward compatibility)
       const ticket = await googleClient.verifyIdToken({
         idToken: credential,
-        audience: process.env.OAUTH_CLIENT_ID,
+        audience: process.env.OAUTH_CLIENT_ID
       });
 
       payload = ticket.getPayload();
@@ -192,11 +194,9 @@ async function googleAuth(req: Request, res: Response) {
     }
 
     // Create JWT and send cookie
-    const token = jwt.sign(
-      { userInfo: user },
-      process.env.SECRET_KEY,
-      { expiresIn: '7d' }
-    );
+    const token = jwt.sign({ userInfo: user }, process.env.SECRET_KEY, {
+      expiresIn: '7d'
+    });
 
     return res
       .status(200)
@@ -209,7 +209,6 @@ async function googleAuth(req: Request, res: Response) {
         partitioned: false
       })
       .json({ user });
-
   } catch (error) {
     console.error('Google auth error:', error);
     res.status(500).send('Authentication failed');

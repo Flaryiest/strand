@@ -1,5 +1,11 @@
 import express from 'express';
-import { signUp, login, verify, logOut, googleAuth } from '../middleware/auth.middle.js';
+import {
+  signUp,
+  login,
+  verify,
+  logOut,
+  googleAuth
+} from '../middleware/auth.middle.js';
 const auth = express.Router();
 
 auth.get('/test', (req, res) => {

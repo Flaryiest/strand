@@ -8,7 +8,7 @@ export const useGoogleAuth = () => {
   const signInWithGoogle = useCallback(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     const redirectUri = `${window.location.origin}/auth/google/callback`;
-    
+
     // OAuth2 params for standard popup flow
     const params = new URLSearchParams({
       client_id: clientId,
@@ -16,17 +16,17 @@ export const useGoogleAuth = () => {
       response_type: 'code',
       scope: 'openid email profile',
       access_type: 'offline',
-      prompt: 'select_account', // Always show account selection
+      prompt: 'select_account' // Always show account selection
     });
 
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-    
+
     // Open popup window (center of screen)
     const width = 500;
     const height = 600;
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
-    
+
     const popup = window.open(
       authUrl,
       'GoogleSignIn',
@@ -37,16 +37,16 @@ export const useGoogleAuth = () => {
     const handleMessage = async (event: MessageEvent) => {
       // Verify origin for security
       if (event.origin !== window.location.origin) return;
-      
+
       if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
         const { code } = event.data;
-        
+
         // Exchange code for token via backend
         const result = await useAuthStore.getState().googleLogin(code);
         if (result.success) {
           navigate('/chat');
         }
-        
+
         window.removeEventListener('message', handleMessage);
       }
     };

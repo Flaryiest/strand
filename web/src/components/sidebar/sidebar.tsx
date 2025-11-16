@@ -15,23 +15,43 @@ interface SidebarProps {
   isMobile: boolean;
 }
 
-export default function Sidebar({ items, isOpen, onToggle, isMobile }: SidebarProps) {
-
+export default function Sidebar({
+  items,
+  isOpen,
+  onToggle,
+  isMobile
+}: SidebarProps) {
   return (
-    <aside className={`${styles.sidebar} ${isOpen ? styles.expanded : styles.minimized} ${isMobile ? styles.mobile : ''}`}>
+    <aside
+      className={`${styles.sidebar} ${isOpen ? styles.expanded : styles.minimized} ${isMobile ? styles.mobile : ''}`}
+    >
       <div className={styles.header}>
         {!isMobile && (
-          <button 
-            className={styles.toggleButton} 
+          <button
+            className={styles.toggleButton}
             onClick={onToggle}
             aria-label={isOpen ? 'Minimize sidebar' : 'Expand sidebar'}
           >
             {isOpen ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M9 18l6-6-6-6" />
               </svg>
             )}

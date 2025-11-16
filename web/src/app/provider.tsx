@@ -16,14 +16,16 @@ export default function AppProvider({ children }: AppProviderProps) {
   // Show loading screen only during initial app load
   if (isInitializing) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        fontSize: '1.2rem',
-        color: '#666'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          fontSize: '1.2rem',
+          color: '#666'
+        }}
+      >
         Loading...
       </div>
     );

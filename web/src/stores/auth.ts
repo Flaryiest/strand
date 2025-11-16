@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import { AuthStore, LoginCredentials, SignupCredentials } from '@/types/auth.types';
+import {
+  AuthStore,
+  LoginCredentials,
+  SignupCredentials
+} from '@/types/auth.types';
 import { baseUrl } from '@/utils/baseUrl';
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -22,10 +26,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const response = await fetch(`${baseUrl}/auth/login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify(credentials),
+        body: JSON.stringify(credentials)
       });
 
       if (response.ok) {
@@ -34,8 +38,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
         return { success: true };
       } else {
         const errorText = await response.text();
-        set({ error: errorText || 'Invalid email or password', isLoading: false });
-        return { success: false, error: errorText || 'Invalid email or password' };
+        set({
+          error: errorText || 'Invalid email or password',
+          isLoading: false
+        });
+        return {
+          success: false,
+          error: errorText || 'Invalid email or password'
+        };
       }
     } catch (err) {
       const errorMessage = 'Network error. Please try again.';
@@ -51,10 +61,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const response = await fetch(`${baseUrl}/auth/signup`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify(credentials),
+        body: JSON.stringify(credentials)
       });
 
       if (response.ok) {
@@ -62,8 +72,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
         return { success: true };
       } else {
         const errorText = await response.text();
-        set({ error: errorText || 'Failed to create account', isLoading: false });
-        return { success: false, error: errorText || 'Failed to create account' };
+        set({
+          error: errorText || 'Failed to create account',
+          isLoading: false
+        });
+        return {
+          success: false,
+          error: errorText || 'Failed to create account'
+        };
       }
     } catch (err) {
       const errorMessage = 'Network error. Please try again.';
@@ -83,9 +99,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const response = await fetch(`${baseUrl}/auth/verify`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        credentials: 'include',
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -95,14 +111,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
           isAuthenticated: true,
           isLoading: false,
           isInitializing: false,
-          error: null,
+          error: null
         });
       } else {
         set({
           user: null,
           isAuthenticated: false,
           isLoading: false,
-          isInitializing: false,
+          isInitializing: false
         });
       }
     } catch (err) {
@@ -111,7 +127,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         user: null,
         isAuthenticated: false,
         isLoading: false,
-        isInitializing: false,
+        isInitializing: false
       });
     }
   },
@@ -123,13 +139,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const response = await fetch(`${baseUrl}/auth/google/callback`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           code,
           redirect_uri: `${window.location.origin}/auth/google/callback`
-        }),
+        })
       });
 
       if (response.ok) {
@@ -138,13 +154,19 @@ export const useAuthStore = create<AuthStore>((set) => ({
           user: data.user,
           isAuthenticated: true,
           isLoading: false,
-          error: null,
+          error: null
         });
         return { success: true };
       } else {
         const errorText = await response.text();
-        set({ error: errorText || 'Google authentication failed', isLoading: false });
-        return { success: false, error: errorText || 'Google authentication failed' };
+        set({
+          error: errorText || 'Google authentication failed',
+          isLoading: false
+        });
+        return {
+          success: false,
+          error: errorText || 'Google authentication failed'
+        };
       }
     } catch (err) {
       const errorMessage = 'Network error. Please try again.';
@@ -159,14 +181,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       await fetch(`${baseUrl}/auth/logout`, {
         method: 'GET',
-        credentials: 'include',
+        credentials: 'include'
       });
 
       set({
         user: null,
         isAuthenticated: false,
         isLoading: false,
-        error: null,
+        error: null
       });
     } catch (err) {
       console.error('Logout error:', err);
@@ -174,8 +196,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       set({
         user: null,
         isAuthenticated: false,
-        isLoading: false,
+        isLoading: false
       });
     }
-  },
+  }
 }));

@@ -10,7 +10,7 @@ export const useAuth = () => {
   const isLoading = useAuthStore((state) => state.isLoading);
   const isInitializing = useAuthStore((state) => state.isInitializing);
   const error = useAuthStore((state) => state.error);
-  
+
   const login = useAuthStore((state) => state.login);
   const signup = useAuthStore((state) => state.signup);
   const logout = useAuthStore((state) => state.logout);
@@ -24,11 +24,12 @@ export const useAuth = () => {
     isLoading,
     isInitializing,
     error,
-    
+
     // Actions
     login,
     signup,
     logout,
     verify,
-    clearError,
-  };};
+    clearError
+  };
+};

@@ -12,7 +12,7 @@ export default function GoogleCallback() {
       window.opener.postMessage(
         {
           type: 'GOOGLE_AUTH_SUCCESS',
-          code,
+          code
         },
         window.location.origin
       );
@@ -24,13 +24,15 @@ export default function GoogleCallback() {
   }, []);
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      height: '100vh',
-      fontFamily: 'system-ui, -apple-system, sans-serif'
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontFamily: 'system-ui, -apple-system, sans-serif'
+      }}
+    >
       <p>Completing sign in...</p>
     </div>
   );

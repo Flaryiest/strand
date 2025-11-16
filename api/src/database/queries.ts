@@ -44,7 +44,7 @@ async function createGoogleUser(data: {
     return await prisma.user.create({
       data: {
         ...data,
-        password: null,
+        password: null
       }
     });
   } catch (err) {
@@ -53,7 +53,11 @@ async function createGoogleUser(data: {
   }
 }
 
-async function linkGoogleAccount(userId: number, googleId: string, profilePicture?: string) {
+async function linkGoogleAccount(
+  userId: number,
+  googleId: string,
+  profilePicture?: string
+) {
   try {
     return await prisma.user.update({
       where: { id: userId },
@@ -69,4 +73,10 @@ async function linkGoogleAccount(userId: number, googleId: string, profilePictur
   }
 }
 
-export { signUp, getUserInfo, getUserByGoogleId, createGoogleUser, linkGoogleAccount };
+export {
+  signUp,
+  getUserInfo,
+  getUserByGoogleId,
+  createGoogleUser,
+  linkGoogleAccount
+};

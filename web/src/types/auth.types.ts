@@ -28,9 +28,15 @@ export interface SignupCredentials {
 }
 
 export interface AuthActions {
-  login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string }>;
-  signup: (credentials: SignupCredentials) => Promise<{ success: boolean; error?: string }>;
-  googleLogin: (credential: string) => Promise<{ success: boolean; error?: string }>;
+  login: (
+    credentials: LoginCredentials
+  ) => Promise<{ success: boolean; error?: string }>;
+  signup: (
+    credentials: SignupCredentials
+  ) => Promise<{ success: boolean; error?: string }>;
+  googleLogin: (
+    credential: string
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   verify: () => Promise<void>;
   clearError: () => void;
