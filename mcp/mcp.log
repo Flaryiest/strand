@@ -1,0 +1,8 @@
+✓ Registered tool: test
+✓ Registered tool: search_places
+🔧 Registered tools: [ 'test', 'search_places' ]
+StrandAI Intelligence Server running on port 3001
+Health check: http://localhost:3001/health
+List tools: http://localhost:3001/tools
+Chat stream: POST http://localhost:3001/chat/stream
+Query stream: POST http://localhost:3001/stream/query

@@ -8,17 +8,47 @@ datasource db {
 }
 
 model User {
-  id             Int     @id @default(autoincrement())
-  email          String  @unique
+  id             Int            @id @default(autoincrement())
+  email          String         @unique
   firstName      String?
   lastName       String?
   location       String?
-  plan           Plan    @default(Basic)
-  credits        Int     @default(0)
+  plan           Plan           @default(Basic)
+  credits        Int            @default(500)
   password       String?
-  googleId       String? @unique
+  googleId       String?        @unique
   profilePicture String?
-  authProvider   String  @default("local")
+  authProvider   String         @default("local")
+  conversations  Conversation[]
+}
+
+model Conversation {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  metadata  Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
+  @@index([userId])
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String       @db.Text
+  eventLog       Json?
+  metadata       Json?
+  tokensUsed     Int?
+  toolCallsCount Int?
+  processingTime Int?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
 }
 
 model Strand {

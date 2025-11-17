@@ -1,6 +1,11 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import 'dotenv/config';
+import { toolRegistry } from './services/tools/ToolRegistry.js';
+import { TestTool } from './services/tools/TestTool.js';
+import { SearchPlacesTool } from './services/tools/SearchPlacesTool.js';
+import { OpenAIService } from './services/ai/OpenAIService.js';
+import { TransparencyLayer } from './services/ai/TransparencyLayer.js';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -12,77 +17,11 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Tool registry
-interface Tool {
-  name: string;
-  description: string;
-  handler: (args: any) => Promise<any>;
-  inputSchema: {
-    type: string;
-    properties: Record<string, any>;
-    required?: string[];
-  };
-}
+// Register tools
+toolRegistry.register(new TestTool());
+toolRegistry.register(new SearchPlacesTool());
 
-const tools = new Map<string, Tool>();
-
-// Register test tool
-tools.set('test', {
-  name: 'test',
-  description: 'A simple test tool to verify server is working',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      message: {
-        type: 'string',
-        description: 'A test message'
-      }
-    },
-    required: ['message']
-  },
-  handler: async (args: { message: string }) => {
-    return {
-      success: true,
-      echo: args.message,
-      timestamp: new Date().toISOString()
-    };
-  }
-});
-
-// Register search_places tool
-tools.set('search_places', {
-  name: 'search_places',
-  description: 'Search for places using Google Maps API',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      query: {
-        type: 'string',
-        description: 'Search query for places'
-      },
-      location: {
-        type: 'string',
-        description: 'Location to search near (e.g., "New York, NY")'
-      },
-      radius: {
-        type: 'number',
-        description: 'Search radius in meters',
-        default: 5000
-      }
-    },
-    required: ['query']
-  },
-  handler: async (args: { query: string; location?: string; radius?: number }) => {
-    // TODO: Implement Google Maps API integration
-    return {
-      success: true,
-      message: 'Places search not yet implemented',
-      query: args.query,
-      location: args.location || 'not specified',
-      radius: args.radius || 5000
-    };
-  }
-});
+console.log('🔧 Registered tools:', toolRegistry.getDefinitions().map(t => t.name));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -96,11 +35,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 // List available tools
 app.get('/tools', (req: Request, res: Response) => {
-  const toolsList = Array.from(tools.values()).map(tool => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema
-  }));
+  const toolsList = toolRegistry.getDefinitions();
 
   res.json({
     success: true,
@@ -114,15 +49,14 @@ app.post('/tools/:toolName', async (req: Request, res: Response) => {
     const { toolName } = req.params;
     const args = req.body;
     
-    const tool = tools.get(toolName);
-    if (!tool) {
+    if (!toolRegistry.has(toolName)) {
       return res.status(404).json({
         success: false,
         error: `Tool '${toolName}' not found`
       });
     }
 
-    const result = await tool.handler(args);
+    const result = await toolRegistry.execute(toolName, args);
     
     res.json({
       success: true,
@@ -190,34 +124,68 @@ app.post('/stream/query', async (req: Request, res: Response) => {
 // Chat endpoint with streaming
 app.post('/chat/stream', async (req: Request, res: Response) => {
   try {
-    const { message, conversationId } = req.body;
+    const { messages, conversationId } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Messages array is required'
+      });
+    }
 
     // Set headers for Server-Sent Events
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    res.write(`data: ${JSON.stringify({ type: 'start' })}\n\n`);
+    // Create transparency layer for this conversation
+    const transparency = new TransparencyLayer();
 
-    // Simulate AI response streaming (replace with actual AI integration)
-    const response = `I'll help you plan that trip! Let me search for the best options in your area...`;
-    const words = response.split(' ');
+    // Listen to all transparency events and forward them as SSE
+    transparency.on('step', (event) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    });
 
-    for (const word of words) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      res.write(`data: ${JSON.stringify({ type: 'token', content: word + ' ' })}\n\n`);
-    }
+    // Add system prompt
+    const fullMessages = [
+      OpenAIService.getSystemPrompt(),
+      ...messages
+    ];
 
+    // Initialize OpenAI service
+    const openai = new OpenAIService();
+
+    // Stream the response
+    const response = await openai.streamChatCompletion({
+      messages: fullMessages,
+      conversationId: conversationId || 0,
+      transparency,
+      onToken: (token) => {
+        // Tokens are already emitted via transparency layer
+      }
+    });
+
+    // Send final completion event
     res.write(`data: ${JSON.stringify({ 
       type: 'done',
-      conversationId: conversationId || 'new-conversation-id'
+      step: transparency.getCurrentStep(),
+      timestamp: new Date().toISOString(),
+      data: {
+        fullResponse: response,
+        conversationId
+      }
     })}\n\n`);
     
     res.end();
   } catch (error) {
+    console.error('Chat stream error:', error);
     res.write(`data: ${JSON.stringify({ 
-      type: 'error', 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      type: 'error',
+      step: 0,
+      timestamp: new Date().toISOString(),
+      data: {
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }
     })}\n\n`);
     res.end();
   }
