@@ -68,7 +68,7 @@ maps.get('/geocode', async (req: Request, res: Response): Promise<any> => {
 
     if (response.data.status === 'OK' && response.data.results.length > 0) {
       const result = response.data.results[0];
-      let locationName = result.formatted_address;
+      const fullAddress = result.formatted_address;
 
       // Try to extract city and state for cleaner format
       const addressComponents = result.address_components;
@@ -79,6 +79,7 @@ maps.get('/geocode', async (req: Request, res: Response): Promise<any> => {
         comp.types.includes('administrative_area_level_1')
       )?.short_name;
 
+      let locationName = fullAddress;
       if (city && state) {
         locationName = `${city}, ${state}`;
       } else if (city) {
@@ -87,6 +88,9 @@ maps.get('/geocode', async (req: Request, res: Response): Promise<any> => {
 
       res.json({
         location: locationName,
+        fullAddress: fullAddress,
+        city: city || null,
+        state: state || null,
         coordinates: { lat: latitude, lng: longitude }
       });
     } else {

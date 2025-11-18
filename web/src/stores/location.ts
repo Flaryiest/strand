@@ -119,7 +119,12 @@ export const useLocationStore = create<LocationStore>((set, get) => ({
 
       const geocodeData = await geocodeResponse.json();
       
-      if (geocodeData.location) {
+      if (geocodeData.fullAddress) {
+        // Use full exact address instead of just city/state
+        get().setLocation(geocodeData.fullAddress, coordinates);
+        set({ isLoading: false });
+      } else if (geocodeData.location) {
+        // Fallback to city/state if full address not available
         get().setLocation(geocodeData.location, coordinates);
         set({ isLoading: false });
       } else {
