@@ -104,6 +104,15 @@ export default function SignupPage() {
 
   return (
     <div className={styles.pageContainer}>
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className={styles.loadingOverlay}>
+          <div className={styles.loadingSpinner}>
+            <div className={styles.spinner}></div>
+            <p className={styles.loadingText}>Creating your account...</p>
+          </div>
+        </div>
+      )}
       {/* Left Side - Carousel */}
       <div className={styles.carouselSection}>
         <div className={styles.carouselBackground}>

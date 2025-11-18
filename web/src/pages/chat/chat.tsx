@@ -9,7 +9,7 @@ import styles from './chat.module.css';
 
 export default function ChatPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const { location, detectLocation } = useLocationStore();
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -23,11 +23,12 @@ export default function ChatPage() {
   }, [isLoading, isAuthenticated, navigate]);
 
   useEffect(() => {
-    // Auto-detect location on mount if not already set
-    if (isAuthenticated && !location) {
+    // Auto-detect location only if user is authenticated, has no location saved in their profile,
+    // and no location is set in the store
+    if (isAuthenticated && !user?.location && !location) {
       detectLocation();
     }
-  }, [isAuthenticated, location, detectLocation]);
+  }, [isAuthenticated, user?.location, location, detectLocation]);
 
   useEffect(() => {
     // Check if mobile on mount and resize
