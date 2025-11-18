@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocationStore } from '@/stores/location';
 import Sidebar from '@/components/sidebar/sidebar';
 import Topbar from '@/components/topbar/topbar';
+import LocationInput from '@/components/locationInput/locationInput';
 import styles from './chat.module.css';
 
 export default function ChatPage() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
+  const { location, detectLocation } = useLocationStore();
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -18,6 +21,13 @@ export default function ChatPage() {
       navigate('/login');
     }
   }, [isLoading, isAuthenticated, navigate]);
+
+  useEffect(() => {
+    // Auto-detect location on mount if not already set
+    if (isAuthenticated && !location) {
+      detectLocation();
+    }
+  }, [isAuthenticated, location, detectLocation]);
 
   useEffect(() => {
     // Check if mobile on mount and resize
@@ -158,6 +168,7 @@ export default function ChatPage() {
         <main className={styles.mainContent}>
           <div className={styles.heroSection}>
             <h1 className={styles.heroGreeting}>Explore the World.</h1>
+            <LocationInput />
           </div>
 
           <div className={styles.inputSection}>

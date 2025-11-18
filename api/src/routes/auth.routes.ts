@@ -4,7 +4,8 @@ import {
   login,
   verify,
   logOut,
-  googleAuth
+  googleAuth,
+  updateLocation
 } from '../middleware/auth.middle.js';
 const auth = express.Router();
 
@@ -30,6 +31,10 @@ auth.get('/logout', (req, res) => {
 
 auth.post('/google/callback', (req, res) => {
   googleAuth(req, res);
+});
+
+auth.put('/location', (req, res) => {
+  updateLocation(req, res);
 });
 
 export default auth;

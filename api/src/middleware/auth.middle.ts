@@ -119,6 +119,38 @@ async function logOut(req: Request, res: Response) {
   res.status(200).send('Logged out');
 }
 
+async function updateLocation(req: Request, res: Response) {
+  try {
+    const token = req.cookies.jwt;
+    if (!token) {
+      return res.status(401).send('Authentication required');
+    }
+
+    jwt.verify(token, process.env.SECRET_KEY, async (err: any, decoded: any) => {
+      if (err) {
+        return res.status(401).send('Invalid or expired token');
+      }
+
+      const { location } = req.body;
+      if (!location || typeof location !== 'string') {
+        return res.status(400).send('Location is required');
+      }
+
+      const userId = decoded.userInfo.id;
+      const result = await db.updateUserLocation(userId, location);
+
+      if (result) {
+        res.status(200).json({ message: 'Location updated successfully' });
+      } else {
+        res.status(500).send('Failed to update location');
+      }
+    });
+  } catch (error) {
+    console.error('Update location error:', error);
+    res.status(500).send('Internal server error');
+  }
+}
+
 async function googleAuth(req: Request, res: Response) {
   try {
     const { credential, code } = req.body;
@@ -215,4 +247,4 @@ async function googleAuth(req: Request, res: Response) {
   }
 }
 
-export { signUp, login, verify, logOut, googleAuth };
+export { signUp, login, verify, logOut, googleAuth, updateLocation };

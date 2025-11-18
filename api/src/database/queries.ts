@@ -73,10 +73,23 @@ async function linkGoogleAccount(
   }
 }
 
+async function updateUserLocation(userId: number, location: string) {
+  try {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: { location }
+    });
+  } catch (err) {
+    console.log(err);
+    return false;
+  }
+}
+
 export {
   signUp,
   getUserInfo,
   getUserByGoogleId,
   createGoogleUser,
-  linkGoogleAccount
+  linkGoogleAccount,
+  updateUserLocation
 };
