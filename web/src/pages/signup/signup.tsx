@@ -39,8 +39,9 @@ export default function SignupPage() {
   });
   const [localError, setLocalError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isExiting, setIsExiting] = useState(false);
   const navigate = useNavigate();
-  const { signup, login, isLoading, error, clearError } = useAuth();
+  const { signup, login, isLoading, error, clearError, isAuthenticated } = useAuth();
   const { signInWithGoogle } = useGoogleAuth();
 
   // Auto-advance carousel
@@ -51,6 +52,16 @@ export default function SignupPage() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Listen for successful authentication (after login following signup)
+  useEffect(() => {
+    if (isAuthenticated && !isExiting) {
+      setIsExiting(true);
+      setTimeout(() => {
+        navigate('/chat');
+      }, 1000);
+    }
+  }, [isAuthenticated, isExiting, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -83,16 +94,17 @@ export default function SignupPage() {
     });
 
     if (result.success) {
-      // Successfully signed up, now log them in and redirect to chat
+      // Successfully signed up, now log them in
       const loginResult = await login({
         email: formData.email,
         password: formData.password
       });
 
       if (loginResult.success) {
-        navigate('/chat');
+        // The useEffect watching isAuthenticated will handle the animation and navigation
+        // Don't navigate directly here
       } else {
-        // If auto-login fails, redirect to login page
+        // If auto-login fails, redirect to login page (no animation needed)
         navigate('/login');
       }
     }
@@ -103,16 +115,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className={styles.pageContainer}>
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className={styles.loadingOverlay}>
-          <div className={styles.loadingSpinner}>
-            <div className={styles.spinner}></div>
-            <p className={styles.loadingText}>Creating your account...</p>
-          </div>
-        </div>
-      )}
+    <div className={`${styles.pageContainer} ${isExiting ? styles.exitAnimation : ''}`}>
       {/* Left Side - Carousel */}
       <div className={styles.carouselSection}>
         <div className={styles.carouselBackground}>

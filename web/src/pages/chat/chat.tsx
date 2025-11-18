@@ -14,6 +14,7 @@ export default function ChatPage() {
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [isEntering, setIsEntering] = useState(true);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -43,6 +44,20 @@ export default function ChatPage() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Trigger entrance animation on mount
+  useEffect(() => {
+    let isMounted = true;
+    const timer = setTimeout(() => {
+      if (isMounted) {
+        setIsEntering(false);
+      }
+    }, 1000);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   const toggleSidebar = () => {
@@ -146,7 +161,7 @@ export default function ChatPage() {
   ];
 
   return (
-    <div className={styles.pageContainer}>
+    <div className={`${styles.pageContainer} ${isEntering ? styles.enterAnimation : ''}`}>
       <Sidebar
         items={sidebarItems}
         isOpen={sidebarOpen}

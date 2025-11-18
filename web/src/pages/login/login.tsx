@@ -35,8 +35,9 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isExiting, setIsExiting] = useState(false);
   const navigate = useNavigate();
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
   const { signInWithGoogle } = useGoogleAuth();
 
   // Auto-advance carousel
@@ -48,6 +49,16 @@ export default function LoginPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for successful authentication
+  useEffect(() => {
+    if (isAuthenticated && !isExiting) {
+      setIsExiting(true);
+      setTimeout(() => {
+        navigate('/chat');
+      }, 1000);
+    }
+  }, [isAuthenticated, isExiting, navigate]);
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
@@ -55,8 +66,12 @@ export default function LoginPage() {
     const result = await login({ email, password });
 
     if (result.success) {
-      // Successfully logged in, redirect to chat dashboard
-      navigate('/chat');
+      // Trigger exit animation
+      setIsExiting(true);
+      // Navigate after animation completes
+      setTimeout(() => {
+        navigate('/chat');
+      }, 1000);
     }
   };
 
@@ -65,16 +80,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={styles.pageContainer}>
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className={styles.loadingOverlay}>
-          <div className={styles.loadingSpinner}>
-            <div className={styles.spinner}></div>
-            <p className={styles.loadingText}>Signing you in...</p>
-          </div>
-        </div>
-      )}
+    <div className={`${styles.pageContainer} ${isExiting ? styles.exitAnimation : ''}`}>
       {/* Left Side - Carousel */}
       <div className={styles.carouselSection}>
         <div className={styles.carouselBackground}>
