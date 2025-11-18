@@ -12,7 +12,11 @@ const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://usestrand.space'],
+  origin: [
+    'http://localhost:5173',
+    'https://usestrand.space',
+    'https://backend.usestrand.space'
+  ],
   credentials: true
 }));
 app.use(express.json());

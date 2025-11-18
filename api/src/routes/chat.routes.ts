@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 const chat: Router = express.Router();
 const prisma = new PrismaClient();
 
-const MCP_URL = process.env.MCP_URL || 'http://localhost:3001';
+const MCP_URL = process.env.MCP_URL || 'https://mcp.usestrand.space';
 
 // Create new conversation
 chat.post('/new', async (req: Request, res: Response): Promise<any> => {
