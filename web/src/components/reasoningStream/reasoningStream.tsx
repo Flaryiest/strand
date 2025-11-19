@@ -6,7 +6,10 @@ interface ReasoningStreamProps {
   accumulatedResponse?: string;
 }
 
-export default function ReasoningStream({ events, accumulatedResponse }: ReasoningStreamProps) {
+export default function ReasoningStream({
+  events,
+  accumulatedResponse
+}: ReasoningStreamProps) {
   const renderEvent = (event: StreamEvent, index: number) => {
     const baseDelay = index * 0.05; // Stagger animation
 
@@ -36,7 +39,14 @@ export default function ReasoningStream({ events, accumulatedResponse }: Reasoni
             style={{ animationDelay: `${baseDelay}s` }}
           >
             <div className={styles.eventIcon}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
             </div>
@@ -60,7 +70,14 @@ export default function ReasoningStream({ events, accumulatedResponse }: Reasoni
             style={{ animationDelay: `${baseDelay}s` }}
           >
             <div className={styles.eventIcon}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
               </svg>
             </div>
@@ -79,7 +96,14 @@ export default function ReasoningStream({ events, accumulatedResponse }: Reasoni
             style={{ animationDelay: `${baseDelay}s` }}
           >
             <div className={styles.eventIcon}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="12" cy="12" r="3" />
                 <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2" />
               </svg>
@@ -99,7 +123,14 @@ export default function ReasoningStream({ events, accumulatedResponse }: Reasoni
             style={{ animationDelay: `${baseDelay}s` }}
           >
             <div className={styles.eventIcon}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
@@ -118,7 +149,14 @@ export default function ReasoningStream({ events, accumulatedResponse }: Reasoni
             style={{ animationDelay: `${baseDelay}s` }}
           >
             <div className={styles.eventIcon}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
@@ -138,7 +176,14 @@ export default function ReasoningStream({ events, accumulatedResponse }: Reasoni
             style={{ animationDelay: `${baseDelay}s` }}
           >
             <div className={styles.eventIcon}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -159,18 +204,23 @@ export default function ReasoningStream({ events, accumulatedResponse }: Reasoni
   return (
     <div className={styles.streamContainer}>
       {events.map((event, index) => renderEvent(event, index))}
-      
+
       {accumulatedResponse && (
         <div className={styles.responseCard}>
           <div className={styles.responseHeader}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
             <span>Assistant</span>
           </div>
-          <div className={styles.responseContent}>
-            {accumulatedResponse}
-          </div>
+          <div className={styles.responseContent}>{accumulatedResponse}</div>
         </div>
       )}
     </div>

@@ -41,7 +41,8 @@ export default function SignupPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
   const navigate = useNavigate();
-  const { signup, login, isLoading, error, clearError, isAuthenticated } = useAuth();
+  const { signup, login, isLoading, error, clearError, isAuthenticated } =
+    useAuth();
   const { signInWithGoogle } = useGoogleAuth();
 
   // Auto-advance carousel
@@ -115,7 +116,9 @@ export default function SignupPage() {
   };
 
   return (
-    <div className={`${styles.pageContainer} ${isExiting ? styles.exitAnimation : ''}`}>
+    <div
+      className={`${styles.pageContainer} ${isExiting ? styles.exitAnimation : ''}`}
+    >
       {/* Left Side - Carousel */}
       <div className={styles.carouselSection}>
         <div className={styles.carouselBackground}>

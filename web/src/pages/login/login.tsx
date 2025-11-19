@@ -80,7 +80,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`${styles.pageContainer} ${isExiting ? styles.exitAnimation : ''}`}>
+    <div
+      className={`${styles.pageContainer} ${isExiting ? styles.exitAnimation : ''}`}
+    >
       {/* Left Side - Carousel */}
       <div className={styles.carouselSection}>
         <div className={styles.carouselBackground}>

@@ -9,7 +9,14 @@ interface PlaceSuggestion {
 }
 
 export default function LocationInput() {
-  const { location, isLoading, error, setLocation, detectLocation, clearError } = useLocationStore();
+  const {
+    location,
+    isLoading,
+    error,
+    setLocation,
+    detectLocation,
+    clearError
+  } = useLocationStore();
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -135,7 +142,7 @@ export default function LocationInput() {
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
           <circle cx="12" cy="10" r="3" />
         </svg>
-        
+
         <input
           ref={inputRef}
           type="text"
@@ -183,27 +190,28 @@ export default function LocationInput() {
               <span>Loading suggestions...</span>
             </div>
           )}
-          {!isLoadingSuggestions && suggestions.map((suggestion) => (
-            <div
-              key={suggestion.placeId}
-              className={styles.suggestionItem}
-              onClick={() => handleSuggestionClick(suggestion)}
-            >
-              <svg
-                className={styles.suggestionIcon}
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+          {!isLoadingSuggestions &&
+            suggestions.map((suggestion) => (
+              <div
+                key={suggestion.placeId}
+                className={styles.suggestionItem}
+                onClick={() => handleSuggestionClick(suggestion)}
               >
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              <span>{suggestion.description}</span>
-            </div>
-          ))}
+                <svg
+                  className={styles.suggestionIcon}
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span>{suggestion.description}</span>
+              </div>
+            ))}
         </div>
       )}
 

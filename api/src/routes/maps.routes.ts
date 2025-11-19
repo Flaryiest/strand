@@ -10,11 +10,15 @@ maps.get('/autocomplete', async (req: Request, res: Response): Promise<any> => {
     const { input } = req.query;
 
     if (!input || typeof input !== 'string') {
-      return res.status(400).json({ error: 'Input query parameter is required' });
+      return res
+        .status(400)
+        .json({ error: 'Input query parameter is required' });
     }
 
     if (!process.env.GOOGLE_MAPS_API_KEY) {
-      return res.status(500).json({ error: 'Google Maps API key not configured' });
+      return res
+        .status(500)
+        .json({ error: 'Google Maps API key not configured' });
     }
 
     const response = await client.placeAutocomplete({
@@ -45,7 +49,9 @@ maps.get('/geocode', async (req: Request, res: Response): Promise<any> => {
     const { lat, lng } = req.query;
 
     if (!lat || !lng) {
-      return res.status(400).json({ error: 'Latitude and longitude are required' });
+      return res
+        .status(400)
+        .json({ error: 'Latitude and longitude are required' });
     }
 
     const latitude = parseFloat(lat as string);
@@ -56,7 +62,9 @@ maps.get('/geocode', async (req: Request, res: Response): Promise<any> => {
     }
 
     if (!process.env.GOOGLE_MAPS_API_KEY) {
-      return res.status(500).json({ error: 'Google Maps API key not configured' });
+      return res
+        .status(500)
+        .json({ error: 'Google Maps API key not configured' });
     }
 
     const response = await client.reverseGeocode({
@@ -103,46 +111,51 @@ maps.get('/geocode', async (req: Request, res: Response): Promise<any> => {
 });
 
 // Place details endpoint - gets details for a specific place
-maps.get('/place-details', async (req: Request, res: Response): Promise<any> => {
-  try {
-    const { placeId } = req.query;
+maps.get(
+  '/place-details',
+  async (req: Request, res: Response): Promise<any> => {
+    try {
+      const { placeId } = req.query;
 
-    if (!placeId || typeof placeId !== 'string') {
-      return res.status(400).json({ error: 'Place ID is required' });
-    }
-
-    if (!process.env.GOOGLE_MAPS_API_KEY) {
-      return res.status(500).json({ error: 'Google Maps API key not configured' });
-    }
-
-    const response = await client.placeDetails({
-      params: {
-        place_id: placeId,
-        fields: ['geometry', 'formatted_address'],
-        key: process.env.GOOGLE_MAPS_API_KEY
+      if (!placeId || typeof placeId !== 'string') {
+        return res.status(400).json({ error: 'Place ID is required' });
       }
-    });
 
-    if (response.data.status === 'OK' && response.data.result) {
-      const place = response.data.result;
-      const coordinates = place.geometry?.location
-        ? {
-            lat: place.geometry.location.lat,
-            lng: place.geometry.location.lng
-          }
-        : null;
+      if (!process.env.GOOGLE_MAPS_API_KEY) {
+        return res
+          .status(500)
+          .json({ error: 'Google Maps API key not configured' });
+      }
 
-      res.json({
-        coordinates,
-        formattedAddress: place.formatted_address
+      const response = await client.placeDetails({
+        params: {
+          place_id: placeId,
+          fields: ['geometry', 'formatted_address'],
+          key: process.env.GOOGLE_MAPS_API_KEY
+        }
       });
-    } else {
-      res.status(404).json({ error: 'Place not found' });
+
+      if (response.data.status === 'OK' && response.data.result) {
+        const place = response.data.result;
+        const coordinates = place.geometry?.location
+          ? {
+              lat: place.geometry.location.lat,
+              lng: place.geometry.location.lng
+            }
+          : null;
+
+        res.json({
+          coordinates,
+          formattedAddress: place.formatted_address
+        });
+      } else {
+        res.status(404).json({ error: 'Place not found' });
+      }
+    } catch (error) {
+      console.error('Place details error:', error);
+      res.status(500).json({ error: 'Failed to fetch place details' });
     }
-  } catch (error) {
-    console.error('Place details error:', error);
-    res.status(500).json({ error: 'Failed to fetch place details' });
   }
-});
+);
 
 export default maps;

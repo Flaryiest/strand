@@ -10,7 +10,7 @@ const MCP_URL = process.env.MCP_URL || 'https://mcp.usestrand.space';
 chat.post('/new', async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return res.status(401).send('Unauthorized');
     }
@@ -40,64 +40,67 @@ chat.post('/new', async (req: Request, res: Response): Promise<any> => {
 });
 
 // Get conversation history
-chat.get('/history/:conversationId', async (req: Request, res: Response): Promise<any> => {
-  try {
-    const userId = (req as any).user?.id;
-    const { conversationId } = req.params;
+chat.get(
+  '/history/:conversationId',
+  async (req: Request, res: Response): Promise<any> => {
+    try {
+      const userId = (req as any).user?.id;
+      const { conversationId } = req.params;
 
-    if (!userId) {
-      return res.status(401).send('Unauthorized');
-    }
+      if (!userId) {
+        return res.status(401).send('Unauthorized');
+      }
 
-    const conversation = await prisma.conversation.findFirst({
-      where: {
-        id: parseInt(conversationId),
-        userId
-      },
-      include: {
-        messages: {
-          orderBy: {
-            createdAt: 'asc'
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: parseInt(conversationId),
+          userId
+        },
+        include: {
+          messages: {
+            orderBy: {
+              createdAt: 'asc'
+            }
           }
         }
-      }
-    });
+      });
 
-    if (!conversation) {
-      return res.status(404).json({
+      if (!conversation) {
+        return res.status(404).json({
+          success: false,
+          error: 'Conversation not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        conversation: {
+          id: conversation.id,
+          title: conversation.title,
+          createdAt: conversation.createdAt,
+          updatedAt: conversation.updatedAt,
+          messages: conversation.messages.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            eventLog: msg.eventLog,
+            metadata: msg.metadata,
+            tokensUsed: msg.tokensUsed,
+            toolCallsCount: msg.toolCallsCount,
+            processingTime: msg.processingTime,
+            createdAt: msg.createdAt
+          }))
+        }
+      });
+    } catch (error) {
+      console.error('Get history error:', error);
+      res.status(500).json({
         success: false,
-        error: 'Conversation not found'
+        error: 'Failed to retrieve conversation history'
       });
     }
-
-    res.json({
-      success: true,
-      conversation: {
-        id: conversation.id,
-        title: conversation.title,
-        createdAt: conversation.createdAt,
-        updatedAt: conversation.updatedAt,
-        messages: conversation.messages.map(msg => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          eventLog: msg.eventLog,
-          metadata: msg.metadata,
-          tokensUsed: msg.tokensUsed,
-          toolCallsCount: msg.toolCallsCount,
-          processingTime: msg.processingTime,
-          createdAt: msg.createdAt
-        }))
-      }
-    });
-  } catch (error) {
-    console.error('Get history error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to retrieve conversation history'
-    });
   }
-});
+);
 
 // List all conversations for user
 chat.get('/list', async (req: Request, res: Response): Promise<any> => {
@@ -123,9 +126,12 @@ chat.get('/list', async (req: Request, res: Response): Promise<any> => {
 
     res.json({
       success: true,
-      conversations: conversations.map(conv => ({
+      conversations: conversations.map((conv) => ({
         id: conv.id,
-        title: conv.title || conv.messages[0]?.content?.substring(0, 50) || 'New Conversation',
+        title:
+          conv.title ||
+          conv.messages[0]?.content?.substring(0, 50) ||
+          'New Conversation',
         createdAt: conv.createdAt,
         updatedAt: conv.updatedAt
       }))
@@ -192,7 +198,7 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
     res.setHeader('Connection', 'keep-alive');
 
     // Build conversation history for context
-    const history = conversation.messages.map(msg => ({
+    const history = conversation.messages.map((msg) => ({
       role: msg.role,
       content: msg.content
     }));
@@ -238,7 +244,7 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
 
         if (value) {
           const chunk = decoder.decode(value, { stream: true });
-          
+
           // Forward to client
           res.write(chunk);
 
@@ -293,16 +299,16 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
       }
 
       res.end();
-
     } catch (error) {
       console.error('MCP request error:', error);
-      res.write(`data: ${JSON.stringify({ 
-        type: 'error', 
-        data: { message: 'Failed to connect to AI service' }
-      })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({
+          type: 'error',
+          data: { message: 'Failed to connect to AI service' }
+        })}\n\n`
+      );
       res.end();
     }
-
   } catch (error) {
     console.error('Stream chat error:', error);
     if (!res.headersSent) {
@@ -315,44 +321,47 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
 });
 
 // Delete conversation
-chat.delete('/:conversationId', async (req: Request, res: Response): Promise<any> => {
-  try {
-    const userId = (req as any).user?.id;
-    const { conversationId } = req.params;
+chat.delete(
+  '/:conversationId',
+  async (req: Request, res: Response): Promise<any> => {
+    try {
+      const userId = (req as any).user?.id;
+      const { conversationId } = req.params;
 
-    if (!userId) {
-      return res.status(401).send('Unauthorized');
-    }
-
-    const conversation = await prisma.conversation.findFirst({
-      where: {
-        id: parseInt(conversationId),
-        userId
+      if (!userId) {
+        return res.status(401).send('Unauthorized');
       }
-    });
 
-    if (!conversation) {
-      return res.status(404).json({
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: parseInt(conversationId),
+          userId
+        }
+      });
+
+      if (!conversation) {
+        return res.status(404).json({
+          success: false,
+          error: 'Conversation not found'
+        });
+      }
+
+      await prisma.conversation.delete({
+        where: { id: conversation.id }
+      });
+
+      res.json({
+        success: true,
+        message: 'Conversation deleted'
+      });
+    } catch (error) {
+      console.error('Delete conversation error:', error);
+      res.status(500).json({
         success: false,
-        error: 'Conversation not found'
+        error: 'Failed to delete conversation'
       });
     }
-
-    await prisma.conversation.delete({
-      where: { id: conversation.id }
-    });
-
-    res.json({
-      success: true,
-      message: 'Conversation deleted'
-    });
-  } catch (error) {
-    console.error('Delete conversation error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete conversation'
-    });
   }
-});
+);
 
 export default chat;

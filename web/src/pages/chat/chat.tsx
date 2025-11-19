@@ -27,14 +27,14 @@ export default function ChatPage() {
     setError,
     reset
   } = useChatStore();
-  
+
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isEntering, setIsEntering] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [showInitialUI, setShowInitialUI] = useState(true);
-  
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const streamContainerRef = useRef<HTMLDivElement>(null);
 
@@ -85,7 +85,8 @@ export default function ChatPage() {
   // Auto-scroll to bottom when streaming
   useEffect(() => {
     if (isStreaming && streamContainerRef.current) {
-      streamContainerRef.current.scrollTop = streamContainerRef.current.scrollHeight;
+      streamContainerRef.current.scrollTop =
+        streamContainerRef.current.scrollHeight;
     }
   }, [streamingEvents, isStreaming]);
 
@@ -137,7 +138,9 @@ export default function ChatPage() {
       return data.conversation.id;
     } catch (err) {
       console.error('Create conversation error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start conversation');
+      setError(
+        err instanceof Error ? err.message : 'Failed to start conversation'
+      );
       return null;
     }
   };
@@ -199,7 +202,7 @@ export default function ChatPage() {
           if (line.startsWith('data: ')) {
             try {
               const eventData = JSON.parse(line.substring(6));
-              
+
               if (eventData.type === 'done') {
                 completeStreaming();
               } else {
@@ -234,7 +237,9 @@ export default function ChatPage() {
     return (
       <div className={styles.loadingContainer}>
         <div className={styles.loadingSpinner}></div>
-        <p>{isLoading ? 'Loading your dashboard...' : 'Redirecting to login...'}</p>
+        <p>
+          {isLoading ? 'Loading your dashboard...' : 'Redirecting to login...'}
+        </p>
       </div>
     );
   }
@@ -320,7 +325,9 @@ export default function ChatPage() {
   ];
 
   return (
-    <div className={`${styles.pageContainer} ${isEntering ? styles.enterAnimation : ''}`}>
+    <div
+      className={`${styles.pageContainer} ${isEntering ? styles.enterAnimation : ''}`}
+    >
       <Sidebar
         items={sidebarItems}
         isOpen={sidebarOpen}
@@ -343,7 +350,9 @@ export default function ChatPage() {
         <main className={styles.mainContent}>
           {/* Initial UI - shown when no messages */}
           {showInitialUI && messages.length === 0 && (
-            <div className={`${styles.heroSection} ${!showInitialUI ? styles.fadeOut : ''}`}>
+            <div
+              className={`${styles.heroSection} ${!showInitialUI ? styles.fadeOut : ''}`}
+            >
               <h1 className={styles.heroGreeting}>Explore the World.</h1>
               <LocationInput />
             </div>
@@ -358,28 +367,50 @@ export default function ChatPage() {
                   {msg.role === 'user' ? (
                     <div className={styles.userMessage}>
                       <div className={styles.userMessageIcon}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
                           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                           <circle cx="12" cy="7" r="4" />
                         </svg>
                       </div>
-                      <div className={styles.userMessageContent}>{msg.content}</div>
+                      <div className={styles.userMessageContent}>
+                        {msg.content}
+                      </div>
                     </div>
                   ) : (
-                    <ReasoningStream events={msg.events || []} accumulatedResponse={msg.content} />
+                    <ReasoningStream
+                      events={msg.events || []}
+                      accumulatedResponse={msg.content}
+                    />
                   )}
                 </div>
               ))}
 
               {/* Active streaming */}
               {isStreaming && (
-                <ReasoningStream events={streamingEvents} accumulatedResponse={accumulatedResponse} />
+                <ReasoningStream
+                  events={streamingEvents}
+                  accumulatedResponse={accumulatedResponse}
+                />
               )}
 
               {/* Error display */}
               {error && (
                 <div className={styles.errorMessage}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -391,12 +422,18 @@ export default function ChatPage() {
           )}
 
           {/* Input Section - always visible or as follow-up */}
-          <div className={`${styles.inputSection} ${messages.length > 0 ? styles.followUpInput : ''}`}>
+          <div
+            className={`${styles.inputSection} ${messages.length > 0 ? styles.followUpInput : ''}`}
+          >
             <div className={styles.inputContainer}>
               <textarea
                 ref={textareaRef}
                 className={styles.chatInput}
-                placeholder={messages.length > 0 ? "Ask for changes or more suggestions..." : "Describe your ideal trip..."}
+                placeholder={
+                  messages.length > 0
+                    ? 'Ask for changes or more suggestions...'
+                    : 'Describe your ideal trip...'
+                }
                 rows={1}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -405,8 +442,8 @@ export default function ChatPage() {
               />
             </div>
             <div className={styles.actionsBar}>
-              <button 
-                className={styles.sendButton} 
+              <button
+                className={styles.sendButton}
                 title="Send message"
                 onClick={sendMessage}
                 disabled={isStreaming || !inputValue.trim()}

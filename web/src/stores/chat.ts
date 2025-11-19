@@ -1,7 +1,16 @@
 import { create } from 'zustand';
 
 export interface StreamEvent {
-  type: 'thinking' | 'action' | 'data' | 'analyzing' | 'deciding' | 'token' | 'result' | 'error' | 'done';
+  type:
+    | 'thinking'
+    | 'action'
+    | 'data'
+    | 'analyzing'
+    | 'deciding'
+    | 'token'
+    | 'result'
+    | 'error'
+    | 'done';
   step: number;
   timestamp: string;
   data: {
@@ -31,7 +40,7 @@ interface ChatState {
   streamingEvents: StreamEvent[];
   accumulatedResponse: string;
   error: string | null;
-  
+
   setConversationId: (id: number) => void;
   addUserMessage: (content: string) => void;
   addStreamEvent: (event: StreamEvent) => void;
@@ -85,7 +94,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   completeStreaming: () => {
     const { streamingEvents, accumulatedResponse } = get();
-    
+
     const assistantMessage: Message = {
       id: Date.now(),
       role: 'assistant',
@@ -104,12 +113,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setError: (error) => set({ error, isStreaming: false }),
 
-  reset: () => set({
-    conversationId: null,
-    messages: [],
-    isStreaming: false,
-    streamingEvents: [],
-    accumulatedResponse: '',
-    error: null
-  })
+  reset: () =>
+    set({
+      conversationId: null,
+      messages: [],
+      isStreaming: false,
+      streamingEvents: [],
+      accumulatedResponse: '',
+      error: null
+    })
 }));

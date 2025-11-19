@@ -80,9 +80,8 @@ async function login(req: Request, res: Response) {
           return res
             .status(200)
             .cookie('jwt', token, {
-              domain: process.env.COOKIE_DOMAIN,
-              sameSite: process.env.COOKIE_DOMAIN ? 'none' : 'lax',
-              secure: process.env.COOKIE_DOMAIN ? true : false,
+              sameSite: 'none',
+              secure: true,
               path: '/',
               httpOnly: true,
               expires: new Date(new Date().getTime() + 24 * 60 * 60 * 1000),
@@ -127,25 +126,29 @@ async function updateLocation(req: Request, res: Response) {
       return res.status(401).send('Authentication required');
     }
 
-    jwt.verify(token, process.env.SECRET_KEY, async (err: any, decoded: any) => {
-      if (err) {
-        return res.status(401).send('Invalid or expired token');
-      }
+    jwt.verify(
+      token,
+      process.env.SECRET_KEY,
+      async (err: any, decoded: any) => {
+        if (err) {
+          return res.status(401).send('Invalid or expired token');
+        }
 
-      const { location } = req.body;
-      if (!location || typeof location !== 'string') {
-        return res.status(400).send('Location is required');
-      }
+        const { location } = req.body;
+        if (!location || typeof location !== 'string') {
+          return res.status(400).send('Location is required');
+        }
 
-      const userId = decoded.userInfo.id;
-      const result = await db.updateUserLocation(userId, location);
+        const userId = decoded.userInfo.id;
+        const result = await db.updateUserLocation(userId, location);
 
-      if (result) {
-        res.status(200).json({ message: 'Location updated successfully' });
-      } else {
-        res.status(500).send('Failed to update location');
+        if (result) {
+          res.status(200).json({ message: 'Location updated successfully' });
+        } else {
+          res.status(500).send('Failed to update location');
+        }
       }
-    });
+    );
   } catch (error) {
     console.error('Update location error:', error);
     res.status(500).send('Internal server error');
@@ -234,9 +237,8 @@ async function googleAuth(req: Request, res: Response) {
     return res
       .status(200)
       .cookie('jwt', token, {
-        domain: process.env.COOKIE_DOMAIN,
-        sameSite: process.env.COOKIE_DOMAIN ? 'none' : 'lax',
-        secure: process.env.COOKIE_DOMAIN ? true : false,
+        sameSite: 'none',
+        secure: true,
         path: '/',
         httpOnly: true,
         expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -254,21 +256,21 @@ async function requireAuth(req: Request, res: Response, next: any) {
     const token = req.cookies.jwt;
     console.log('Auth middleware - token present:', !!token);
     console.log('Auth middleware - all cookies:', req.cookies);
-    
+
     if (!token) {
       console.log('Auth middleware - No JWT token found');
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: 'Authentication required - no token found' 
+        error: 'Authentication required - no token found'
       });
     }
 
     jwt.verify(token, process.env.SECRET_KEY, (err: any, decoded: any) => {
       if (err) {
         console.log('Auth middleware - JWT verification failed:', err.message);
-        return res.status(401).json({ 
+        return res.status(401).json({
           success: false,
-          error: 'Invalid or expired token' 
+          error: 'Invalid or expired token'
         });
       }
       console.log('Auth middleware - User authenticated:', decoded.userInfo.id);
@@ -277,11 +279,19 @@ async function requireAuth(req: Request, res: Response, next: any) {
     });
   } catch (error) {
     console.error('Auth middleware error:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: 'Authentication failed' 
+      error: 'Authentication failed'
     });
   }
 }
 
-export { signUp, login, verify, logOut, googleAuth, updateLocation, requireAuth };
+export {
+  signUp,
+  login,
+  verify,
+  logOut,
+  googleAuth,
+  updateLocation,
+  requireAuth
+};

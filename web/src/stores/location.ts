@@ -9,7 +9,10 @@ interface LocationState {
 }
 
 interface LocationActions {
-  setLocation: (location: string, coordinates?: { lat: number; lng: number }) => void;
+  setLocation: (
+    location: string,
+    coordinates?: { lat: number; lng: number }
+  ) => void;
   updateLocationInBackend: () => Promise<void>;
   detectLocation: () => Promise<void>;
   clearError: () => void;
@@ -22,7 +25,7 @@ const loadLocationFromStorage = (): Partial<LocationState> => {
   try {
     const savedLocation = localStorage.getItem('userLocation');
     const savedCoordinates = localStorage.getItem('userCoordinates');
-    
+
     if (savedLocation) {
       return {
         location: savedLocation,
@@ -44,17 +47,20 @@ export const useLocationStore = create<LocationStore>((set, get) => ({
   ...loadLocationFromStorage(),
 
   // Actions
-  setLocation: (location: string, coordinates?: { lat: number; lng: number }) => {
+  setLocation: (
+    location: string,
+    coordinates?: { lat: number; lng: number }
+  ) => {
     // Save to localStorage
     localStorage.setItem('userLocation', location);
     if (coordinates) {
       localStorage.setItem('userCoordinates', JSON.stringify(coordinates));
     }
-    
-    set({ 
-      location, 
+
+    set({
+      location,
       coordinates: coordinates || null,
-      error: null 
+      error: null
     });
 
     // Update backend after setting local state
@@ -87,20 +93,22 @@ export const useLocationStore = create<LocationStore>((set, get) => ({
     set({ isLoading: true, error: null });
 
     if (!navigator.geolocation) {
-      set({ 
-        error: 'Geolocation is not supported by your browser', 
-        isLoading: false 
+      set({
+        error: 'Geolocation is not supported by your browser',
+        isLoading: false
       });
       return;
     }
 
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          timeout: 10000,
-          enableHighAccuracy: true
-        });
-      });
+      const position = await new Promise<GeolocationPosition>(
+        (resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 10000,
+            enableHighAccuracy: true
+          });
+        }
+      );
 
       const { latitude, longitude } = position.coords;
       const coordinates = { lat: latitude, lng: longitude };
@@ -118,7 +126,7 @@ export const useLocationStore = create<LocationStore>((set, get) => ({
       }
 
       const geocodeData = await geocodeResponse.json();
-      
+
       if (geocodeData.fullAddress) {
         // Use full exact address instead of just city/state
         get().setLocation(geocodeData.fullAddress, coordinates);
@@ -128,23 +136,24 @@ export const useLocationStore = create<LocationStore>((set, get) => ({
         get().setLocation(geocodeData.location, coordinates);
         set({ isLoading: false });
       } else {
-        set({ 
-          error: 'Could not determine location name', 
-          isLoading: false 
+        set({
+          error: 'Could not determine location name',
+          isLoading: false
         });
       }
     } catch (error: any) {
       console.error('Geolocation error:', error);
       let errorMessage = 'Failed to detect location';
-      
+
       if (error.code === 1) {
-        errorMessage = 'Location access denied. Please enable location permissions.';
+        errorMessage =
+          'Location access denied. Please enable location permissions.';
       } else if (error.code === 2) {
         errorMessage = 'Location unavailable. Please try again.';
       } else if (error.code === 3) {
         errorMessage = 'Location request timed out. Please try again.';
       }
-      
+
       set({ error: errorMessage, isLoading: false });
     }
   },
