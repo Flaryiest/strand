@@ -110,6 +110,12 @@ export default function ChatPage() {
   const createConversation = async (): Promise<number | null> => {
     try {
       const apiUrl = 'https://backend.usestrand.space';
+      
+      console.log('Creating conversation...');
+      console.log('User authenticated:', isAuthenticated);
+      console.log('User data:', user);
+      console.log('All cookies:', document.cookie);
+      
       const response = await fetch(`${apiUrl}/chat/new`, {
         method: 'POST',
         credentials: 'include',
@@ -118,28 +124,52 @@ export default function ChatPage() {
         }
       });
 
-      console.log('Create conversation response status:', response.status);
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.status === 401) {
-        console.error('401 Unauthorized - Please log in');
-        setError('You are not logged in. Redirecting to login...');
-        setTimeout(() => navigate('/login'), 2000);
+        console.error('401 Unauthorized - Authentication failed');
+        console.log('Attempting to re-verify authentication...');
+        
+        // Try to verify auth again
+        const { isAuthenticated: authCheck } = useAuth();
+        if (!authCheck) {
+          setError('Session expired. Please log in again.');
+          setTimeout(() => navigate('/login'), 2000);
+        }
         return null;
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Create conversation failed:', errorData);
-        throw new Error(errorData.error || 'Failed to create conversation');
+        const errorText = await response.text();
+        console.error('Create conversation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || 'Failed to create conversation' };
+        }
+        
+        throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Conversation created successfully:', data);
+      console.log('Conversation created:', data);
       return data.conversation.id;
     } catch (err) {
       console.error('Create conversation error:', err);
+      console.error('Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      
       setError(
-        err instanceof Error ? err.message : 'Failed to start conversation'
+        err instanceof Error ? err.message : 'Failed to start conversation. Please try refreshing the page.'
       );
       return null;
     }

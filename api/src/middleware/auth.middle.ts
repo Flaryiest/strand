@@ -251,11 +251,11 @@ async function googleAuth(req: Request, res: Response) {
   }
 }
 
-async function requireAuth(req: Request, res: Response, next: any) {
+function requireAuth(req: Request, res: Response, next: any) {
   try {
     const token = req.cookies.jwt;
     console.log('Auth middleware - token present:', !!token);
-    console.log('Auth middleware - all cookies:', req.cookies);
+    console.log('Auth middleware - cookies:', Object.keys(req.cookies));
 
     if (!token) {
       console.log('Auth middleware - No JWT token found');
@@ -273,7 +273,16 @@ async function requireAuth(req: Request, res: Response, next: any) {
           error: 'Invalid or expired token'
         });
       }
-      console.log('Auth middleware - User authenticated:', decoded.userInfo.id);
+      
+      if (!decoded.userInfo) {
+        console.log('Auth middleware - No user info in token');
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid token format'
+        });
+      }
+      
+      console.log('Auth middleware - User authenticated:', decoded.userInfo.id || decoded.userInfo.email);
       req.user = decoded.userInfo;
       next();
     });

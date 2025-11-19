@@ -9,11 +9,20 @@ const MCP_URL = process.env.MCP_URL || 'https://mcp.usestrand.space';
 // Create new conversation
 chat.post('/new', async (req: Request, res: Response): Promise<any> => {
   try {
+    console.log('Creating new conversation...');
+    console.log('User from middleware:', (req as any).user);
+    
     const userId = (req as any).user?.id;
-
+    
     if (!userId) {
-      return res.status(401).send('Unauthorized');
+      console.error('No userId found in request');
+      return res.status(401).json({
+        success: false,
+        error: 'User ID not found - authentication may have failed'
+      });
     }
+
+    console.log('User ID:', userId);
 
     const conversation = await prisma.conversation.create({
       data: {
@@ -22,6 +31,8 @@ chat.post('/new', async (req: Request, res: Response): Promise<any> => {
         metadata: {}
       }
     });
+
+    console.log('Conversation created:', conversation.id);
 
     res.status(201).json({
       success: true,
@@ -34,12 +45,10 @@ chat.post('/new', async (req: Request, res: Response): Promise<any> => {
     console.error('Create conversation error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to create conversation'
+      error: error instanceof Error ? error.message : 'Failed to create conversation'
     });
   }
-});
-
-// Get conversation history
+});// Get conversation history
 chat.get(
   '/history/:conversationId',
   async (req: Request, res: Response): Promise<any> => {
