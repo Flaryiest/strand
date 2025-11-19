@@ -51,14 +51,6 @@ model Message {
   @@index([conversationId])
 }
 
-model Strand {
-  id        Int      @id @default(autoincrement())
-  uid       String
-  prompt    String
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-}
-
 enum Plan {
   Basic
   Premium

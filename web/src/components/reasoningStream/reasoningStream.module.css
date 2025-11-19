@@ -1,0 +1,169 @@
+.streamContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.eventCard {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  animation: slideIn 0.4s ease forwards;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.eventIcon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 154, 126, 0.1);
+  border-radius: 10px;
+  color: #8b9a7e;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(139, 154, 126, 0.2);
+  border-top-color: #8b9a7e;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.eventContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.eventType {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8b9a7e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.eventMessage {
+  font-size: 0.95rem;
+  color: rgb(17, 17, 17);
+  line-height: 1.5;
+}
+
+.eventDetail {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.eventDetail code {
+  font-family: 'Courier New', monospace;
+  color: #6b7a5f;
+}
+
+.resultCard {
+  border: 2px solid #8b9a7e;
+  background: rgba(139, 154, 126, 0.03);
+}
+
+.resultCard .eventIcon {
+  background: #8b9a7e;
+  color: white;
+}
+
+.errorCard {
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  background: rgba(254, 226, 226, 0.3);
+}
+
+.errorCard .eventIcon {
+  background: rgba(220, 38, 38, 0.1);
+  color: rgb(220, 38, 38);
+}
+
+.errorCard .eventType {
+  color: rgb(220, 38, 38);
+}
+
+.responseCard {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: white;
+  border: 2px solid #8b9a7e;
+  border-radius: 16px;
+  animation: slideIn 0.5s ease forwards;
+}
+
+.responseHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  color: #6b7a5f;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.responseHeader svg {
+  stroke: #8b9a7e;
+}
+
+.responseContent {
+  font-size: 1rem;
+  color: rgb(17, 17, 17);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .streamContainer {
+    padding: 1rem;
+  }
+
+  .eventCard {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .eventIcon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .eventMessage {
+    font-size: 0.9rem;
+  }
+
+  .responseCard {
+    padding: 1.25rem;
+  }
+}

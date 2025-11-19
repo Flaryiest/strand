@@ -247,4 +247,39 @@ async function googleAuth(req: Request, res: Response) {
   }
 }
 
-export { signUp, login, verify, logOut, googleAuth, updateLocation };
+async function requireAuth(req: Request, res: Response, next: any) {
+  try {
+    const token = req.cookies.jwt;
+    console.log('Auth middleware - token present:', !!token);
+    console.log('Auth middleware - all cookies:', req.cookies);
+    
+    if (!token) {
+      console.log('Auth middleware - No JWT token found');
+      return res.status(401).json({ 
+        success: false,
+        error: 'Authentication required - no token found' 
+      });
+    }
+
+    jwt.verify(token, process.env.SECRET_KEY, (err: any, decoded: any) => {
+      if (err) {
+        console.log('Auth middleware - JWT verification failed:', err.message);
+        return res.status(401).json({ 
+          success: false,
+          error: 'Invalid or expired token' 
+        });
+      }
+      console.log('Auth middleware - User authenticated:', decoded.userInfo.id);
+      req.user = decoded.userInfo;
+      next();
+    });
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: 'Authentication failed' 
+    });
+  }
+}
+
+export { signUp, login, verify, logOut, googleAuth, updateLocation, requireAuth };

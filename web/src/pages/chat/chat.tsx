@@ -1,20 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocationStore } from '@/stores/location';
+import { useChatStore } from '@/stores/chat';
 import Sidebar from '@/components/sidebar/sidebar';
 import Topbar from '@/components/topbar/topbar';
 import LocationInput from '@/components/locationInput/locationInput';
+import ReasoningStream from '@/components/reasoningStream/reasoningStream';
 import styles from './chat.module.css';
 
 export default function ChatPage() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading, user } = useAuth();
   const { location, detectLocation } = useLocationStore();
+  const {
+    conversationId,
+    messages,
+    isStreaming,
+    streamingEvents,
+    accumulatedResponse,
+    error,
+    setConversationId,
+    addUserMessage,
+    addStreamEvent,
+    completeStreaming,
+    setError,
+    reset
+  } = useChatStore();
+  
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isEntering, setIsEntering] = useState(true);
+  const [inputValue, setInputValue] = useState('');
+  const [showInitialUI, setShowInitialUI] = useState(true);
+  
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const streamContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -60,6 +82,20 @@ export default function ChatPage() {
     };
   }, []);
 
+  // Auto-scroll to bottom when streaming
+  useEffect(() => {
+    if (isStreaming && streamContainerRef.current) {
+      streamContainerRef.current.scrollTop = streamContainerRef.current.scrollHeight;
+    }
+  }, [streamingEvents, isStreaming]);
+
+  // Focus textarea after streaming completes
+  useEffect(() => {
+    if (!isStreaming && messages.length > 0 && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [isStreaming, messages.length]);
+
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
@@ -70,17 +106,137 @@ export default function ChatPage() {
     }
   };
 
-  if (isLoading) {
+  const createConversation = async (): Promise<number | null> => {
+    try {
+      const apiUrl = 'https://backend.usestrand.space';
+      const response = await fetch(`${apiUrl}/chat/new`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Create conversation response status:', response.status);
+
+      if (response.status === 401) {
+        console.error('401 Unauthorized - Please log in');
+        setError('You are not logged in. Redirecting to login...');
+        setTimeout(() => navigate('/login'), 2000);
+        return null;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Create conversation failed:', errorData);
+        throw new Error(errorData.error || 'Failed to create conversation');
+      }
+
+      const data = await response.json();
+      console.log('Conversation created successfully:', data);
+      return data.conversation.id;
+    } catch (err) {
+      console.error('Create conversation error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start conversation');
+      return null;
+    }
+  };
+
+  const sendMessage = async () => {
+    const trimmedInput = inputValue.trim();
+    if (!trimmedInput || isStreaming) return;
+
+    // Hide initial UI on first message
+    if (showInitialUI) {
+      setShowInitialUI(false);
+    }
+
+    // Create conversation if needed
+    let convId = conversationId;
+    if (!convId) {
+      convId = await createConversation();
+      if (!convId) return;
+      setConversationId(convId);
+    }
+
+    // Add user message to UI
+    addUserMessage(trimmedInput);
+    setInputValue('');
+
+    // Start streaming from API
+    try {
+      const apiUrl = 'https://backend.usestrand.space';
+      const response = await fetch(`${apiUrl}/chat/stream`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          conversationId: convId,
+          message: trimmedInput,
+          location: location || 'Unknown'
+        })
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error('Failed to start stream');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.substring(6));
+              
+              if (eventData.type === 'done') {
+                completeStreaming();
+              } else {
+                addStreamEvent(eventData);
+              }
+            } catch (e) {
+              console.error('Parse error:', e);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Stream error:', err);
+      setError('Failed to get response. Please try again.');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  const handleNewChat = () => {
+    reset();
+    setShowInitialUI(true);
+    setInputValue('');
+  };
+
+  if (isLoading || !isAuthenticated) {
     return (
       <div className={styles.loadingContainer}>
         <div className={styles.loadingSpinner}></div>
-        <p>Loading your dashboard...</p>
+        <p>{isLoading ? 'Loading your dashboard...' : 'Redirecting to login...'}</p>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null; // Will redirect in useEffect
   }
 
   const sidebarItems = [
@@ -99,7 +255,10 @@ export default function ChatPage() {
           <path d="M12 5v14M5 12h14" />
         </svg>
       ),
-      onClick: () => setActiveView('chat'),
+      onClick: () => {
+        setActiveView('chat');
+        handleNewChat();
+      },
       active: activeView === 'chat'
     },
     {
@@ -182,73 +341,91 @@ export default function ChatPage() {
 
         {/* Main Content */}
         <main className={styles.mainContent}>
-          <div className={styles.heroSection}>
-            <h1 className={styles.heroGreeting}>Explore the World.</h1>
-            <LocationInput />
-          </div>
+          {/* Initial UI - shown when no messages */}
+          {showInitialUI && messages.length === 0 && (
+            <div className={`${styles.heroSection} ${!showInitialUI ? styles.fadeOut : ''}`}>
+              <h1 className={styles.heroGreeting}>Explore the World.</h1>
+              <LocationInput />
+            </div>
+          )}
 
-          <div className={styles.inputSection}>
+          {/* Streaming/Messages View */}
+          {(messages.length > 0 || isStreaming) && (
+            <div className={styles.conversationView} ref={streamContainerRef}>
+              {/* Display past messages */}
+              {messages.map((msg) => (
+                <div key={msg.id} className={styles.messageBlock}>
+                  {msg.role === 'user' ? (
+                    <div className={styles.userMessage}>
+                      <div className={styles.userMessageIcon}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                      </div>
+                      <div className={styles.userMessageContent}>{msg.content}</div>
+                    </div>
+                  ) : (
+                    <ReasoningStream events={msg.events || []} accumulatedResponse={msg.content} />
+                  )}
+                </div>
+              ))}
+
+              {/* Active streaming */}
+              {isStreaming && (
+                <ReasoningStream events={streamingEvents} accumulatedResponse={accumulatedResponse} />
+              )}
+
+              {/* Error display */}
+              {error && (
+                <div className={styles.errorMessage}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Input Section - always visible or as follow-up */}
+          <div className={`${styles.inputSection} ${messages.length > 0 ? styles.followUpInput : ''}`}>
             <div className={styles.inputContainer}>
               <textarea
+                ref={textareaRef}
                 className={styles.chatInput}
-                placeholder="Describe your ideal trip..."
+                placeholder={messages.length > 0 ? "Ask for changes or more suggestions..." : "Describe your ideal trip..."}
                 rows={1}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isStreaming}
               />
             </div>
             <div className={styles.actionsBar}>
-              <button className={styles.actionButton} title="Attach file">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                </svg>
-              </button>
-              <button className={styles.actionButton} title="Voice input">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                  <line x1="12" y1="19" x2="12" y2="23" />
-                  <line x1="8" y1="23" x2="16" y2="23" />
-                </svg>
-              </button>
-              <button className={styles.actionButton} title="Image upload">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
-              </button>
-              <button className={styles.sendButton} title="Send message">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
+              <button 
+                className={styles.sendButton} 
+                title="Send message"
+                onClick={sendMessage}
+                disabled={isStreaming || !inputValue.trim()}
+              >
+                {isStreaming ? (
+                  <div className={styles.sendingSpinner}></div>
+                ) : (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                )}
               </button>
             </div>
           </div>
