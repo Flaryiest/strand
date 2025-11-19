@@ -167,33 +167,54 @@ export default function IndexPage() {
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <circle cx="40" cy="40" r="22" fill="rgba(0,0,0,0.08)" />
-                  <circle cx="100" cy="40" r="22" fill="rgba(0,0,0,0.12)" />
-                  <circle cx="160" cy="40" r="22" fill="rgba(0,0,0,0.08)" />
-                  <circle cx="40" cy="40" r="16" fill="rgba(0,0,0,0.15)" />
-                  <circle cx="100" cy="40" r="16" fill="rgba(0,0,0,0.2)" />
-                  <circle cx="160" cy="40" r="16" fill="rgba(0,0,0,0.15)" />
+                  {/* User avatars */}
+                  <circle cx="40" cy="40" r="20" fill="rgba(139, 154, 126, 0.15)" stroke="rgba(139, 154, 126, 0.4)" strokeWidth="2" />
+                  <circle cx="100" cy="40" r="20" fill="rgba(107, 122, 95, 0.2)" stroke="#6b7a5f" strokeWidth="2" />
+                  <circle cx="160" cy="40" r="20" fill="rgba(139, 154, 126, 0.15)" stroke="rgba(139, 154, 126, 0.4)" strokeWidth="2" />
+                  
+                  {/* Avatar initials/icons */}
+                  <circle cx="40" cy="35" r="4" fill="#8b9a7e" />
+                  <path d="M 30 50 Q 40 42 50 50" stroke="#8b9a7e" strokeWidth="3" strokeLinecap="round" fill="none" />
+                  
+                  <circle cx="100" cy="35" r="4" fill="#6b7a5f" />
+                  <path d="M 90 50 Q 100 42 110 50" stroke="#6b7a5f" strokeWidth="3" strokeLinecap="round" fill="none" />
+                  
+                  <circle cx="160" cy="35" r="4" fill="#8b9a7e" />
+                  <path d="M 150 50 Q 160 42 170 50" stroke="#8b9a7e" strokeWidth="3" strokeLinecap="round" fill="none" />
+                  
+                  {/* Connection lines */}
                   <line
-                    x1="62"
+                    x1="60"
                     y1="40"
-                    x2="78"
+                    x2="80"
                     y2="40"
-                    stroke="rgba(0,0,0,0.25)"
-                    strokeWidth="3"
+                    stroke="rgba(139, 154, 126, 0.5)"
+                    strokeWidth="2"
+                    strokeDasharray="3 3"
                     strokeLinecap="round"
                   />
                   <line
-                    x1="122"
+                    x1="120"
                     y1="40"
-                    x2="138"
+                    x2="140"
                     y2="40"
-                    stroke="rgba(0,0,0,0.25)"
-                    strokeWidth="3"
+                    stroke="rgba(139, 154, 126, 0.5)"
+                    strokeWidth="2"
+                    strokeDasharray="3 3"
                     strokeLinecap="round"
                   />
-                  <circle cx="40" cy="40" r="6" fill="white" opacity="0.8" />
-                  <circle cx="100" cy="40" r="6" fill="white" opacity="0.8" />
-                  <circle cx="160" cy="40" r="6" fill="white" opacity="0.8" />
+                  
+                  {/* Share icon on center user */}
+                  <g transform="translate(95, 15)">
+                    <path
+                      d="M 3 0 L 7 4 L 3 8 M 7 4 L 0 4"
+                      stroke="white"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </g>
                 </svg>
               </div>
               <div className={styles.featureThree}>
@@ -212,30 +233,63 @@ export default function IndexPage() {
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                 >
+                  {/* Winding path */}
                   <path
-                    d="M20 50 L50 25 L80 40 L110 20 L140 35 L170 30"
-                    stroke="rgba(0,0,0,0.12)"
-                    strokeWidth="5"
+                    d="M20 50 Q35 40 50 30 T80 35 Q95 38 110 25 T140 32 Q155 35 170 28"
+                    stroke="rgba(139, 154, 126, 0.2)"
+                    strokeWidth="3"
                     fill="none"
                     strokeLinecap="round"
                   />
+                  
+                  {/* Journey stops with icons */}
+                  <g transform="translate(20, 50)">
+                    <circle r="10" fill="#8b9a7e" opacity="0.2" />
+                    <circle r="6" fill="#8b9a7e" />
+                    <path d="M -2 -1 L 0 2 L 3 -2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  </g>
+                  
+                  <g transform="translate(50, 30)">
+                    <circle r="10" fill="#6b7a5f" opacity="0.2" />
+                    <circle r="6" fill="#6b7a5f" />
+                    <rect x="-2" y="-2" width="4" height="4" fill="white" rx="0.5" />
+                  </g>
+                  
+                  <g transform="translate(80, 35)">
+                    <circle r="10" fill="#8b9a7e" opacity="0.2" />
+                    <circle r="6" fill="#8b9a7e" />
+                    <circle r="1.5" fill="white" />
+                  </g>
+                  
+                  <g transform="translate(110, 25)">
+                    <circle r="10" fill="#6b7a5f" opacity="0.2" />
+                    <circle r="6" fill="#6b7a5f" />
+                    <path d="M 0 -2 L 0 2 M -2 0 L 2 0" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                  </g>
+                  
+                  <g transform="translate(140, 32)">
+                    <circle r="10" fill="#8b9a7e" opacity="0.2" />
+                    <circle r="6" fill="#8b9a7e" />
+                    <circle cx="-1" cy="-1" r="1" fill="white" />
+                    <circle cx="1" cy="-1" r="1" fill="white" />
+                    <path d="M -1.5 1 Q 0 2 1.5 1" stroke="white" strokeWidth="1" fill="none" />
+                  </g>
+                  
+                  <g transform="translate(170, 28)">
+                    <circle r="10" fill="#6b7a5f" opacity="0.2" />
+                    <circle r="6" fill="#6b7a5f" />
+                    <path d="M -2 0 L 0 -2 L 2 0 L 0 2 Z" fill="white" />
+                  </g>
+                  
+                  {/* Progress indicator */}
                   <path
-                    d="M20 50 L50 25 L80 40 L110 20 L140 35 L170 30"
-                    stroke="rgba(0,0,0,0.2)"
+                    d="M20 50 Q35 40 50 30"
+                    stroke="#8b9a7e"
                     strokeWidth="2.5"
                     fill="none"
                     strokeLinecap="round"
+                    opacity="0.8"
                   />
-                  <circle cx="20" cy="50" r="8" fill="rgba(0,0,0,0.15)" />
-                  <circle cx="50" cy="25" r="8" fill="rgba(0,0,0,0.2)" />
-                  <circle cx="80" cy="40" r="8" fill="rgba(0,0,0,0.15)" />
-                  <circle cx="110" cy="20" r="8" fill="rgba(0,0,0,0.2)" />
-                  <circle cx="140" cy="35" r="8" fill="rgba(0,0,0,0.15)" />
-                  <circle cx="170" cy="30" r="8" fill="rgba(0,0,0,0.2)" />
-                  <circle cx="20" cy="50" r="3" fill="white" opacity="0.9" />
-                  <circle cx="50" cy="25" r="3" fill="white" opacity="0.9" />
-                  <circle cx="110" cy="20" r="3" fill="white" opacity="0.9" />
-                  <circle cx="170" cy="30" r="3" fill="white" opacity="0.9" />
                 </svg>
               </div>
             </div>
