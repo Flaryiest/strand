@@ -78,16 +78,17 @@ async function login(req: Request, res: Response) {
           }
 
           return res
-            .status(200)
-            .cookie('jwt', token, {
-              sameSite: 'none',
-              secure: true,
-              path: '/',
-              httpOnly: true,
-              expires: new Date(new Date().getTime() + 24 * 60 * 60 * 1000),
-              partitioned: false
-            })
-            .send('Authentication successful');
+        .status(200)
+        .cookie('jwt', token, {
+          sameSite: 'none',
+          secure: true,
+          path: '/',
+          httpOnly: true,
+          domain: process.env.NODE_ENV === 'production' ? '.usestrand.space' : undefined,
+          expires: new Date(new Date().getTime() + 24 * 60 * 60 * 1000),
+          partitioned: false
+        })
+        .send('Authentication successful');
         }
       );
     } else {
@@ -237,6 +238,7 @@ async function googleAuth(req: Request, res: Response) {
         secure: true,
         path: '/',
         httpOnly: true,
+        domain: process.env.NODE_ENV === 'production' ? '.usestrand.space' : undefined,
         expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         partitioned: false
       })
