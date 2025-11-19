@@ -9,6 +9,9 @@ import LoginPage from '@/pages/login/login';
 import SignupPage from '@/pages/signup/signup';
 import ChatPage from '@/pages/chat/chat';
 import GoogleCallback from '@/pages/auth/GoogleCallback';
+import DemoPage from '@/pages/demo/demo';
+import PricingPage from '@/pages/pricing/pricing';
+import ErrorPage from '@/pages/error/error';
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -18,6 +21,9 @@ const router = createBrowserRouter(
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/chat" element={<ChatPage />} />
       <Route path="/auth/google/callback" element={<GoogleCallback />} />
+      <Route path="/demo" element={<DemoPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="*" element={<ErrorPage />} />
     </>
   )
 );

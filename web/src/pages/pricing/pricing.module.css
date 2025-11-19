@@ -1,0 +1,362 @@
+.pageContainer {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #f9fafb 0%, #ffffff 100%);
+}
+
+.contentWrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  margin-bottom: 4rem;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: rgb(17, 17, 17);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.navLink {
+  color: rgb(100, 100, 100);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+
+.navLink:hover {
+  color: rgb(17, 17, 17);
+}
+
+.loginButton {
+  padding: 0.5rem 1.25rem;
+  background: rgb(17, 17, 17);
+  color: white;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.loginButton:hover {
+  background: rgb(0, 0, 0);
+  transform: translateY(-1px);
+}
+
+/* Hero Section */
+.heroSection {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.heroTitle {
+  font-size: 3rem;
+  font-weight: 300;
+  color: rgb(17, 17, 17);
+  letter-spacing: -0.03em;
+  margin: 0 0 1rem 0;
+}
+
+.heroSubtitle {
+  font-size: 1.125rem;
+  color: rgb(100, 100, 100);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Pricing Grid */
+.pricingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+.pricingCard {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  padding: 2rem;
+  position: relative;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.pricingCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.pricingCard.featured {
+  border: 2px solid #8b9a7e;
+  box-shadow: 0 4px 16px rgba(139, 154, 126, 0.15);
+}
+
+.popularBadge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #8b9a7e;
+  color: white;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.cardHeader {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.planBadge {
+  display: inline-block;
+  background: rgba(139, 154, 126, 0.1);
+  color: #6b7a5f;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.planName {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: rgb(17, 17, 17);
+  margin: 0 0 1rem 0;
+}
+
+.priceContainer {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.price {
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: rgb(17, 17, 17);
+  letter-spacing: -0.02em;
+}
+
+.period {
+  font-size: 1rem;
+  color: rgb(100, 100, 100);
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.includesTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(100, 100, 100);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.featureList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  color: rgb(17, 17, 17);
+  line-height: 1.5;
+}
+
+.checkIcon {
+  flex-shrink: 0;
+  color: #8b9a7e;
+  margin-top: 2px;
+}
+
+.feature.highlighted {
+  font-weight: 500;
+  color: #6b7a5f;
+}
+
+.limitedOffer {
+  display: inline-block;
+  background: rgba(139, 154, 126, 0.15);
+  color: #6b7a5f;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  text-transform: lowercase;
+}
+
+.ctaButton {
+  width: 100%;
+  padding: 0.875rem;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  color: rgb(17, 17, 17);
+  border-radius: 10px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  margin-top: auto;
+}
+
+.ctaButton:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.3);
+}
+
+.ctaButton.primaryButton {
+  background: rgb(17, 17, 17);
+  color: white;
+  border: none;
+}
+
+.ctaButton.primaryButton:hover {
+  background: rgb(0, 0, 0);
+  transform: translateY(-1px);
+}
+
+/* FAQ Section */
+.faqSection {
+  margin-bottom: 4rem;
+}
+
+.faqTitle {
+  font-size: 2rem;
+  font-weight: 300;
+  color: rgb(17, 17, 17);
+  text-align: center;
+  margin: 0 0 3rem 0;
+  letter-spacing: -0.02em;
+}
+
+.faqGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+.faqItem {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.faqQuestion {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: rgb(17, 17, 17);
+  margin: 0 0 0.75rem 0;
+}
+
+.faqAnswer {
+  font-size: 0.95rem;
+  color: rgb(100, 100, 100);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 2rem 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.footerText {
+  font-size: 0.95rem;
+  color: rgb(100, 100, 100);
+  margin: 0;
+}
+
+.footerLink {
+  color: rgb(17, 17, 17);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.footerLink:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .contentWrapper {
+    padding: 1rem;
+  }
+
+  .header {
+    margin-bottom: 2rem;
+  }
+
+  .nav {
+    gap: 1rem;
+  }
+
+  .navLink {
+    font-size: 0.875rem;
+  }
+
+  .loginButton {
+    padding: 0.4rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .heroTitle {
+    font-size: 2rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1rem;
+  }
+
+  .pricingGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .faqGrid {
+    grid-template-columns: 1fr;
+  }
+}
