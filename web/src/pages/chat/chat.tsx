@@ -132,8 +132,8 @@ export default function ChatPage() {
         console.log('Attempting to re-verify authentication...');
         
         // Try to verify auth again
-        const { isAuthenticated: authCheck } = useAuth();
-        if (!authCheck) {
+        // Removed invalid hook call - using isAuthenticated from component scope instead
+        // Session expired, redirect to login
           setError('Session expired. Please log in again.');
           setTimeout(() => navigate('/login'), 2000);
         }

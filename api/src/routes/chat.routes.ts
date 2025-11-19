@@ -1,5 +1,6 @@
 import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth } from '../middleware/auth.middle.js';
 
 const chat: Router = express.Router();
 const prisma = new PrismaClient();
@@ -7,7 +8,7 @@ const prisma = new PrismaClient();
 const MCP_URL = process.env.MCP_URL || 'https://mcp.usestrand.space';
 
 // Create new conversation
-chat.post('/new', async (req: Request, res: Response): Promise<any> => {
+chat.post('/new', requireAuth, async (req: Request, res: Response): Promise<any> => {
   try {
     console.log('Creating new conversation...');
     console.log('User from middleware:', (req as any).user);
@@ -48,9 +49,12 @@ chat.post('/new', async (req: Request, res: Response): Promise<any> => {
       error: error instanceof Error ? error.message : 'Failed to create conversation'
     });
   }
-});// Get conversation history
+});
+
+// Get conversation history
 chat.get(
   '/history/:conversationId',
+  requireAuth,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const userId = (req as any).user?.id;
@@ -112,7 +116,7 @@ chat.get(
 );
 
 // List all conversations for user
-chat.get('/list', async (req: Request, res: Response): Promise<any> => {
+chat.get('/list', requireAuth, async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
 
@@ -155,7 +159,7 @@ chat.get('/list', async (req: Request, res: Response): Promise<any> => {
 });
 
 // Stream AI response
-chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
+chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { conversationId, message } = req.body;
@@ -332,6 +336,7 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
 // Delete conversation
 chat.delete(
   '/:conversationId',
+  requireAuth,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const userId = (req as any).user?.id;
