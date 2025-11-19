@@ -27,10 +27,120 @@ export default function IndexPage() {
           <div className={styles.featureCardContainer}>
             <div className={styles.featureColumnOne}>
               <div className={styles.featureOne}>
-                <img
-                  src="/landing/journey.png"
+                <svg
                   className={styles.featureImage}
-                />
+                  viewBox="0 0 400 300"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  {/* Chat bubble */}
+                  <rect
+                    x="40"
+                    y="40"
+                    width="320"
+                    height="100"
+                    rx="16"
+                    fill="rgba(139, 154, 126, 0.08)"
+                    stroke="rgba(139, 154, 126, 0.3)"
+                    strokeWidth="2"
+                  />
+                  {/* Text lines */}
+                  <line
+                    x1="70"
+                    y1="70"
+                    x2="250"
+                    y2="70"
+                    stroke="rgba(0,0,0,0.15)"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1="70"
+                    y1="90"
+                    x2="200"
+                    y2="90"
+                    stroke="rgba(0,0,0,0.1)"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1="70"
+                    y1="110"
+                    x2="280"
+                    y2="110"
+                    stroke="rgba(0,0,0,0.1)"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                  
+                  {/* AI response bubble */}
+                  <rect
+                    x="60"
+                    y="165"
+                    width="280"
+                    height="95"
+                    rx="16"
+                    fill="white"
+                    stroke="rgba(0,0,0,0.1)"
+                    strokeWidth="2"
+                  />
+                  
+                  {/* Location pins */}
+                  <g transform="translate(90, 185)">
+                    <path
+                      d="M12 0C5.4 0 0 5.4 0 12c0 7.2 12 20 12 20s12-12.8 12-20c0-6.6-5.4-12-12-12zm0 16c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z"
+                      fill="#8b9a7e"
+                    />
+                  </g>
+                  <g transform="translate(160, 185)">
+                    <path
+                      d="M12 0C5.4 0 0 5.4 0 12c0 7.2 12 20 12 20s12-12.8 12-20c0-6.6-5.4-12-12-12zm0 16c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z"
+                      fill="#6b7a5f"
+                    />
+                  </g>
+                  <g transform="translate(230, 185)">
+                    <path
+                      d="M12 0C5.4 0 0 5.4 0 12c0 7.2 12 20 12 20s12-12.8 12-20c0-6.6-5.4-12-12-12zm0 16c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z"
+                      fill="#8b9a7e"
+                    />
+                  </g>
+                  
+                  {/* Connecting lines */}
+                  <line
+                    x1="102"
+                    y1="205"
+                    x2="172"
+                    y2="205"
+                    stroke="rgba(139, 154, 126, 0.3)"
+                    strokeWidth="2"
+                    strokeDasharray="4 4"
+                  />
+                  <line
+                    x1="184"
+                    y1="205"
+                    x2="242"
+                    y2="205"
+                    stroke="rgba(139, 154, 126, 0.3)"
+                    strokeWidth="2"
+                    strokeDasharray="4 4"
+                  />
+                  
+                  {/* Sparkles for AI magic */}
+                  <g transform="translate(310, 180)">
+                    <path
+                      d="M0 5 L1.5 1.5 L5 0 L1.5 -1.5 L0 -5 L-1.5 -1.5 L-5 0 L-1.5 1.5 Z"
+                      fill="#8b9a7e"
+                      opacity="0.6"
+                    />
+                  </g>
+                  <g transform="translate(295, 210)">
+                    <path
+                      d="M0 3.5 L1 1 L3.5 0 L1 -1 L0 -3.5 L-1 -1 L-3.5 0 L-1 1 Z"
+                      fill="#6b7a5f"
+                      opacity="0.4"
+                    />
+                  </g>
+                </svg>
                 <div className={styles.featureOneText}>
                   <h4 className={styles.featureOneTitle}>
                     Describe your ideal trip
