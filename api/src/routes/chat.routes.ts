@@ -235,6 +235,7 @@ chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<a
     let toolCallCount = 0;
 
     try {
+      console.log('Connecting to MCP at:', `${MCP_URL}/chat/stream`);
       const response = await fetch(`${MCP_URL}/chat/stream`, {
         method: 'POST',
         headers: {
@@ -243,8 +244,16 @@ chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<a
         body: JSON.stringify(mcpPayload)
       });
 
-      if (!response.ok || !response.body) {
-        throw new Error('Failed to connect to MCP service');
+      console.log('MCP response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('MCP error response:', errorText);
+        throw new Error(`MCP service error: ${response.status} - ${errorText}`);
+      }
+      
+      if (!response.body) {
+        throw new Error('MCP service returned no response body');
       }
 
       const reader = response.body.getReader();
@@ -314,10 +323,14 @@ chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<a
       res.end();
     } catch (error) {
       console.error('MCP request error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to connect to AI service';
       res.write(
         `data: ${JSON.stringify({
           type: 'error',
-          data: { message: 'Failed to connect to AI service' }
+          data: { 
+            message: 'Failed to connect to AI service',
+            details: errorMessage
+          }
         })}\n\n`
       );
       res.end();
