@@ -65,8 +65,10 @@ export class TransparencyLayer {
       this.streamCallback(fullEvent);
     }
 
-    // Also log for debugging
-    console.log(`[Step ${fullEvent.step}] ${fullEvent.type}: ${fullEvent.data.message || ''}`);
+    // Only log non-token events for debugging
+    if (fullEvent.type !== 'token') {
+      console.log(`[Step ${fullEvent.step}] ${fullEvent.type}: ${fullEvent.data.message || ''}`);
+    }
   }
 
   /**

@@ -37,7 +37,7 @@ interface ChatCompletionChunk {
 export class OpenAIService {
   private readonly apiKey: string;
   private readonly baseUrl = 'https://api.openai.com/v1';
-  private readonly model = 'gpt-4-turbo-preview';
+  private readonly model = 'gpt-5.1';
 
   constructor() {
     if (!config.openaiApiKey) {
@@ -52,7 +52,7 @@ export class OpenAIService {
   async streamChatCompletion(options: OpenAIStreamOptions): Promise<string> {
     const { messages, transparency, onToken } = options;
 
-    transparency.thinking('Preparing to send request to GPT-4...');
+    transparency.thinking('Preparing to send request to GPT-5.1...');
 
     // Build the request payload
     const payload = {
@@ -141,7 +141,7 @@ export class OpenAIService {
 
               // Check if we're done
               if (chunk.choices[0]?.finish_reason === 'function_call' && functionCall) {
-                transparency.analyzing('GPT-4 requested to call a function', {
+                transparency.analyzing('GPT-5.1 requested to call a function', {
                   function: functionCall.name,
                   arguments: functionCall.arguments
                 });
@@ -168,7 +168,7 @@ export class OpenAIService {
                   }
                 ];
 
-                transparency.deciding('Sending function result back to GPT-4 for final response...');
+                transparency.deciding('Sending function result back to GPT-5.1 for final response...');
 
                 // Recursive call to get the final response
                 return await this.streamChatCompletion({
@@ -178,7 +178,7 @@ export class OpenAIService {
               }
 
               if (chunk.choices[0]?.finish_reason === 'stop') {
-                transparency.result('GPT-4 response complete', {
+                transparency.result('GPT-5.1 response complete', {
                   totalLength: fullContent.length
                 });
                 return fullContent;
@@ -201,7 +201,7 @@ export class OpenAIService {
   }
 
   /**
-   * Execute a function call requested by GPT-4
+   * Execute a function call requested by GPT-5.1
    */
   private async executeFunctionCall(
     functionName: string,
@@ -243,20 +243,30 @@ export class OpenAIService {
   static getSystemPrompt(): Message {
     return {
       role: 'system',
-      content: `You are Strand AI, an intelligent travel planning assistant. Your role is to help users plan amazing trips by:
+      content: `You are Strand AI, a specialized location discovery assistant. Your SOLE PURPOSE is to find and recommend the absolute best locations for whatever the user is seeking.
 
-1. Understanding their travel preferences, budget, and constraints
-2. Searching for relevant places, restaurants, hotels, and attractions
-3. Providing thoughtful recommendations based on their needs
-4. Creating detailed itineraries that make sense logistically
+CORE MISSION:
+- Your primary goal is to identify the perfect location(s) for the user's specific request
+- Every response should focus on discovering, analyzing, and recommending real places
+- Think like a local expert who knows all the hidden gems and popular spots
 
-When using tools:
-- Always search for places when users ask about destinations, restaurants, hotels, or activities
-- Be specific in your searches (include location context)
-- Provide rich, detailed responses with practical information
-- Consider factors like distance, ratings, and user preferences
+ALWAYS follow this workflow:
+1. Understand WHAT they're looking for (activity, vibe, cuisine, etc.)
+2. Understand WHERE they want it (city, neighborhood, or use their location)
+3. Use the search_places tool to find relevant options
+4. Analyze results based on ratings, reviews, proximity, and relevance
+5. Present the TOP recommendations with compelling reasons why
 
-Be conversational, helpful, and enthusiastic about travel. Make users excited about their upcoming trips!`
+When responding:
+- Be direct and location-focused - don't give generic advice
+- Always include specific place names, addresses, and key details
+- Explain WHY each location is perfect for their needs
+- Consider practical factors: distance, opening hours, price range
+- If the request is vague, ask clarifying questions about location or preferences
+
+IMPORTANT: You are NOT a general chatbot. If someone asks about topics unrelated to finding locations (math, coding, general knowledge), politely redirect them: "I'm specifically designed to help you find amazing places! What kind of location are you looking for today?"
+
+Your tone: Enthusiastic local expert who's genuinely excited to share great spots.`
     };
   }
 }

@@ -13,14 +13,27 @@ export default function ChatPage() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading, user } = useAuth();
   const { location, detectLocation } = useLocationStore();
-  const { conversationId, setConversationId, addUserMessage, setError } = useChatStore();
+  const { 
+    conversationId, 
+    messages,
+    isStreaming,
+    streamingEvents,
+    accumulatedResponse,
+    setConversationId, 
+    addUserMessage, 
+    addStreamEvent,
+    completeStreaming,
+    setError 
+  } = useChatStore();
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isEntering, setIsEntering] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [hasStartedChat, setHasStartedChat] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -49,6 +62,11 @@ export default function ChatPage() {
     const timer = setTimeout(() => setIsEntering(false), 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, streamingEvents]);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const closeSidebar = () => { if (isMobile) setSidebarOpen(false); };
@@ -104,8 +122,18 @@ export default function ChatPage() {
 
           try {
             const eventData = JSON.parse(data);
-            console.log('Stream event:', eventData);
-            // TODO: Update UI with streaming events using addStreamEvent()
+            // Only log non-token events to reduce console spam
+            if (eventData.type !== 'token') {
+              console.log('Stream event:', eventData);
+            }
+            
+            if (eventData.type === 'done') {
+              completeStreaming();
+            } else {
+              addStreamEvent(eventData);
+            }
+            
+            setHasStartedChat(true);
           } catch (e) {
             console.warn('Failed to parse SSE data:', data);
           }
@@ -164,21 +192,96 @@ export default function ChatPage() {
       <div className={`${styles.contentWrapper} ${sidebarOpen && !isMobile ? styles.sidebarExpanded : !sidebarOpen && !isMobile ? styles.sidebarMinimized : ''}`}>
         <Topbar onMenuClick={toggleSidebar} showMenuButton={isMobile} sidebarOpen={sidebarOpen} />
         <main className={styles.mainContent}>
-          <div className={styles.heroSection}>
-            <h1 className={styles.heroGreeting}>Explore the World.</h1>
-            <LocationInput />
-          </div>
+          {/* Conditional rendering based on chat state */}
+          {!hasStartedChat ? (
+            <div className={styles.heroSection}>
+              <h1 className={styles.heroGreeting}>Explore the World.</h1>
+              <LocationInput />
+            </div>
+          ) : (
+            <div className={styles.chatMessagesArea}>
+              {/* Render all messages */}
+              {messages.map((msg) => (
+                <div 
+                  key={msg.id} 
+                  className={msg.role === 'user' ? styles.userMessage : styles.aiMessage}
+                >
+                  <div className={styles.messageContent}>
+                    {msg.content}
+                  </div>
+                  
+                  {/* Show reasoning steps for AI messages (excluding tokens) */}
+                  {msg.role === 'assistant' && msg.events && msg.events.filter(e => e.type !== 'token').length > 0 && (
+                    <div className={styles.reasoningSteps}>
+                      {msg.events.filter(e => e.type !== 'token').map((event, idx) => (
+                        <div key={idx} className={styles.reasoningStep}>
+                          <span className={styles.stepIcon}>
+                            {event.type === 'thinking' && '🤔'}
+                            {event.type === 'analyzing' && '🔍'}
+                            {event.type === 'action' && '⚡'}
+                            {event.type === 'result' && '✓'}
+                          </span>
+                          <span className={styles.stepText}>
+                            {event.data.message}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {/* Show streaming events for current response */}
+              {isStreaming && (
+                <div className={styles.aiMessage}>
+                  {/* Only show non-token reasoning steps */}
+                  {streamingEvents.filter(e => e.type !== 'token').length > 0 && (
+                    <div className={styles.reasoningSteps}>
+                      {streamingEvents.filter(e => e.type !== 'token').map((event, idx) => (
+                        <div key={idx} className={styles.reasoningStep}>
+                          <span className={styles.stepIcon}>
+                            {event.type === 'thinking' && '🤔'}
+                            {event.type === 'analyzing' && '🔍'}
+                            {event.type === 'action' && '⚡'}
+                            {event.type === 'result' && '✓'}
+                          </span>
+                          <span className={styles.stepText}>
+                            {event.data.message || event.data.fullResponse}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Show accumulated response from tokens */}
+                  {accumulatedResponse && (
+                    <div className={styles.messageContent}>
+                      {accumulatedResponse}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+          
           <div className={styles.inputSection}>
             <div className={styles.inputContainer}>
               <textarea
                 ref={textareaRef}
                 className={styles.chatInput}
-                placeholder="Describe your ideal trip..."
+                placeholder={
+                  isStreaming 
+                    ? "AI is analyzing your request..." 
+                    : hasStartedChat 
+                    ? "Ask a follow-up question..." 
+                    : "Describe your ideal trip..."
+                }
                 rows={1}
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                disabled={isSending}
+                disabled={isSending || isStreaming}
               />
             </div>
             <div className={styles.actionsBar}>
