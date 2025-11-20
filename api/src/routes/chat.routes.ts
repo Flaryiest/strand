@@ -211,20 +211,18 @@ chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<a
     res.setHeader('Connection', 'keep-alive');
 
     // Build conversation history for context
-    const history = conversation.messages.map((msg) => ({
+    const messages = conversation.messages.map((msg) => ({
       role: msg.role,
       content: msg.content
     }));
 
     // Add current message
-    history.push({ role: 'user', content: message });
+    messages.push({ role: 'user', content: message });
 
     // Prepare request to MCP
     const mcpPayload = {
-      userId,
-      conversationId: conversation.id,
-      message,
-      history
+      messages,
+      conversationId: conversation.id
     };
 
     // Stream from MCP
