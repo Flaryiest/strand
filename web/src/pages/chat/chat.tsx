@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/stores/auth';
+import { baseUrl } from '@/utils/baseUrl';
 import { useLocationStore } from '@/stores/location';
 import { useChatStore } from '@/stores/chat';
 import Sidebar from '@/components/sidebar/sidebar';
@@ -109,14 +111,12 @@ export default function ChatPage() {
 
   const createConversation = async (): Promise<number | null> => {
     try {
-      const apiUrl = 'https://backend.usestrand.space';
-      
       console.log('Creating conversation...');
       console.log('User authenticated:', isAuthenticated);
       console.log('User data:', user);
       console.log('All cookies:', document.cookie);
       
-      const response = await fetch(`${apiUrl}/chat/new`, {
+      const response = await fetch(`${baseUrl}/chat/new`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -132,7 +132,9 @@ export default function ChatPage() {
         console.log('Attempting to re-verify authentication...');
         
         // Try to verify auth again
-        const { isAuthenticated: authCheck } = useAuth();
+        await useAuthStore.getState().verify();
+        const authCheck = useAuthStore.getState().isAuthenticated;
+        
         if (!authCheck) {
           setError('Session expired. Please log in again.');
           setTimeout(() => navigate('/login'), 2000);
@@ -198,8 +200,7 @@ export default function ChatPage() {
 
     // Start streaming from API
     try {
-      const apiUrl = 'https://backend.usestrand.space';
-      const response = await fetch(`${apiUrl}/chat/stream`, {
+      const response = await fetch(`${baseUrl}/chat/stream`, {
         method: 'POST',
         credentials: 'include',
         headers: {
