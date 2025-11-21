@@ -223,8 +223,7 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
     const mcpPayload = {
       userId,
       conversationId: conversation.id,
-      message,
-      history
+      messages: history
     };
 
     // Stream from MCP
@@ -243,8 +242,14 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
         body: JSON.stringify(mcpPayload)
       });
 
-      if (!response.ok || !response.body) {
-        throw new Error('Failed to connect to MCP service');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`MCP Error: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(`MCP service returned ${response.status}: ${errorText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('Failed to connect to MCP service: No response body');
       }
 
       const reader = response.body.getReader();
