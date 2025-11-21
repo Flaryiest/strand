@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import * as db from '../database/queries.js';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 const googleClient = new OAuth2Client(
   process.env.OAUTH_CLIENT_ID,
@@ -251,7 +251,7 @@ async function googleAuth(req: Request, res: Response) {
   }
 }
 
-function requireAuth(req: Request, res: Response, next: any) {
+function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
     const token = req.cookies.jwt;
     console.log('Auth middleware - token present:', !!token);
@@ -259,27 +259,30 @@ function requireAuth(req: Request, res: Response, next: any) {
 
     if (!token) {
       console.log('Auth middleware - No JWT token found');
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Authentication required - no token found'
       });
+      return;
     }
 
     jwt.verify(token, process.env.SECRET_KEY, (err: any, decoded: any) => {
       if (err) {
         console.log('Auth middleware - JWT verification failed:', err.message);
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           error: 'Invalid or expired token'
         });
+        return;
       }
       
       if (!decoded.userInfo) {
         console.log('Auth middleware - No user info in token');
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           error: 'Invalid token format'
         });
+        return;
       }
       
       console.log('Auth middleware - User authenticated:', decoded.userInfo.id || decoded.userInfo.email);
@@ -288,10 +291,11 @@ function requireAuth(req: Request, res: Response, next: any) {
     });
   } catch (error) {
     console.error('Auth middleware error:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Authentication failed'
     });
+    return;
   }
 }
 

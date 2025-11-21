@@ -1,8 +1,12 @@
 import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { requireAuth } from '../middleware/auth.middle.js';
 
 const chat: Router = express.Router();
 const prisma = new PrismaClient();
+
+// Apply authentication middleware to all chat routes
+chat.use(requireAuth);
 
 const MCP_URL = process.env.MCP_URL || 'https://mcp.usestrand.space';
 
