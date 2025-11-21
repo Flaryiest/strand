@@ -62,7 +62,7 @@ export class OpenAIService {
       function_call: 'auto',
       stream: true,
       temperature: 0.7,
-      max_tokens: 2000
+      max_completion_tokens: 2000
     };
 
     transparency.analyzing('Sending request to OpenAI API...', {

@@ -1,6 +1,5 @@
 import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth } from '../middleware/auth.middle.js';
 
 const chat: Router = express.Router();
 const prisma = new PrismaClient();
@@ -8,7 +7,7 @@ const prisma = new PrismaClient();
 const MCP_URL = process.env.MCP_URL || 'https://mcp.usestrand.space';
 
 // Create new conversation
-chat.post('/new', requireAuth, async (req: Request, res: Response): Promise<any> => {
+chat.post('/new', async (req: Request, res: Response): Promise<any> => {
   try {
     console.log('Creating new conversation...');
     console.log('User from middleware:', (req as any).user);
@@ -49,12 +48,9 @@ chat.post('/new', requireAuth, async (req: Request, res: Response): Promise<any>
       error: error instanceof Error ? error.message : 'Failed to create conversation'
     });
   }
-});
-
-// Get conversation history
+});// Get conversation history
 chat.get(
   '/history/:conversationId',
-  requireAuth,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const userId = (req as any).user?.id;
@@ -116,7 +112,7 @@ chat.get(
 );
 
 // List all conversations for user
-chat.get('/list', requireAuth, async (req: Request, res: Response): Promise<any> => {
+chat.get('/list', async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
 
@@ -159,7 +155,7 @@ chat.get('/list', requireAuth, async (req: Request, res: Response): Promise<any>
 });
 
 // Stream AI response
-chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<any> => {
+chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
     const { conversationId, message } = req.body;
@@ -211,18 +207,20 @@ chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<a
     res.setHeader('Connection', 'keep-alive');
 
     // Build conversation history for context
-    const messages = conversation.messages.map((msg) => ({
+    const history = conversation.messages.map((msg) => ({
       role: msg.role,
       content: msg.content
     }));
 
     // Add current message
-    messages.push({ role: 'user', content: message });
+    history.push({ role: 'user', content: message });
 
     // Prepare request to MCP
     const mcpPayload = {
-      messages,
-      conversationId: conversation.id
+      userId,
+      conversationId: conversation.id,
+      message,
+      history
     };
 
     // Stream from MCP
@@ -233,7 +231,6 @@ chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<a
     let toolCallCount = 0;
 
     try {
-      console.log('Connecting to MCP at:', `${MCP_URL}/chat/stream`);
       const response = await fetch(`${MCP_URL}/chat/stream`, {
         method: 'POST',
         headers: {
@@ -242,16 +239,8 @@ chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<a
         body: JSON.stringify(mcpPayload)
       });
 
-      console.log('MCP response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('MCP error response:', errorText);
-        throw new Error(`MCP service error: ${response.status} - ${errorText}`);
-      }
-      
-      if (!response.body) {
-        throw new Error('MCP service returned no response body');
+      if (!response.ok || !response.body) {
+        throw new Error('Failed to connect to MCP service');
       }
 
       const reader = response.body.getReader();
@@ -321,14 +310,10 @@ chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<a
       res.end();
     } catch (error) {
       console.error('MCP request error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to connect to AI service';
       res.write(
         `data: ${JSON.stringify({
           type: 'error',
-          data: { 
-            message: 'Failed to connect to AI service',
-            details: errorMessage
-          }
+          data: { message: 'Failed to connect to AI service' }
         })}\n\n`
       );
       res.end();
@@ -347,7 +332,6 @@ chat.post('/stream', requireAuth, async (req: Request, res: Response): Promise<a
 // Delete conversation
 chat.delete(
   '/:conversationId',
-  requireAuth,
   async (req: Request, res: Response): Promise<any> => {
     try {
       const userId = (req as any).user?.id;

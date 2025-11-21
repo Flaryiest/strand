@@ -251,7 +251,7 @@ async function googleAuth(req: Request, res: Response) {
   }
 }
 
-function requireAuth(req: Request, res: Response, next: any): void {
+function requireAuth(req: Request, res: Response, next: any) {
   try {
     const token = req.cookies.jwt;
     console.log('Auth middleware - token present:', !!token);
@@ -259,30 +259,27 @@ function requireAuth(req: Request, res: Response, next: any): void {
 
     if (!token) {
       console.log('Auth middleware - No JWT token found');
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         error: 'Authentication required - no token found'
       });
-      return;
     }
 
     jwt.verify(token, process.env.SECRET_KEY, (err: any, decoded: any) => {
       if (err) {
         console.log('Auth middleware - JWT verification failed:', err.message);
-        res.status(401).json({
+        return res.status(401).json({
           success: false,
           error: 'Invalid or expired token'
         });
-        return;
       }
       
       if (!decoded.userInfo) {
         console.log('Auth middleware - No user info in token');
-        res.status(401).json({
+        return res.status(401).json({
           success: false,
           error: 'Invalid token format'
         });
-        return;
       }
       
       console.log('Auth middleware - User authenticated:', decoded.userInfo.id || decoded.userInfo.email);
@@ -291,7 +288,7 @@ function requireAuth(req: Request, res: Response, next: any): void {
     });
   } catch (error) {
     console.error('Auth middleware error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Authentication failed'
     });
