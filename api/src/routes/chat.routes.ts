@@ -219,11 +219,15 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
     // Add current message
     history.push({ role: 'user', content: message });
 
+    // Get location from request body
+    const { location } = req.body;
+
     // Prepare request to MCP
     const mcpPayload = {
       userId,
       conversationId: conversation.id,
-      messages: history
+      messages: history,
+      location: location || null
     };
 
     // Stream from MCP

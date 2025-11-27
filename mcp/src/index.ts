@@ -128,7 +128,7 @@ app.post('/stream/query', async (req: Request, res: Response) => {
 // Chat endpoint with streaming
 app.post('/chat/stream', async (req: Request, res: Response) => {
   try {
-    const { messages, conversationId } = req.body;
+    const { messages, conversationId, location } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({
@@ -150,9 +150,9 @@ app.post('/chat/stream', async (req: Request, res: Response) => {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
     });
 
-    // Add system prompt
+    // Add system prompt with location context
     const fullMessages = [
-      OpenAIService.getSystemPrompt(),
+      OpenAIService.getSystemPrompt(location),
       ...messages
     ];
 
