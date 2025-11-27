@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/auth';
 import { baseUrl } from '@/utils/baseUrl';
@@ -13,16 +13,23 @@ import styles from './chat.module.css';
 
 export default function ChatPage() {
   const navigate = useNavigate();
+  const { chatId } = useParams<{ chatId?: string }>();
   const { isAuthenticated, isLoading, user } = useAuth();
   const { location, detectLocation } = useLocationStore();
   const {
-    conversationId,
+    conversationUuid,
     messages,
     isStreaming,
     streamingEvents,
     accumulatedResponse,
     error,
+    conversations,
+    isLoadingConversations,
     setConversationId,
+    setConversationUuid,
+    setConversations,
+    setLoadingConversations,
+    setMessages,
     addUserMessage,
     addStreamEvent,
     completeStreaming,
@@ -36,16 +43,128 @@ export default function ChatPage() {
   const [isEntering, setIsEntering] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [showInitialUI, setShowInitialUI] = useState(true);
+  const [isPublicView, setIsPublicView] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const streamContainerRef = useRef<HTMLDivElement>(null);
 
+  // Load conversation from URL if chatId is present
   useEffect(() => {
-    // Redirect to login if not authenticated
-    if (!isLoading && !isAuthenticated) {
+    const loadConversation = async () => {
+      if (!chatId) {
+        // No chatId in URL, show fresh chat
+        if (conversationUuid) {
+          reset();
+        }
+        setShowInitialUI(true);
+        return;
+      }
+
+      // Check if we already have this conversation loaded
+      if (conversationUuid === chatId && messages.length > 0) {
+        setShowInitialUI(false);
+        return;
+      }
+
+      setIsLoadingChat(true);
+      
+      try {
+        // Try to load as authenticated user first
+        if (isAuthenticated) {
+          const response = await fetch(`${baseUrl}/chat/history/${chatId}`, {
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.conversation) {
+              setConversationId(data.conversation.id);
+              setConversationUuid(data.conversation.uuid);
+              setMessages(data.conversation.messages.map((msg: any) => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+                events: msg.eventLog || [],
+                createdAt: msg.createdAt
+              })));
+              setShowInitialUI(false);
+              setIsPublicView(false);
+              setIsLoadingChat(false);
+              return;
+            }
+          }
+        }
+
+        // Try public endpoint
+        const publicResponse = await fetch(`${baseUrl}/chat/public/${chatId}`);
+        if (publicResponse.ok) {
+          const data = await publicResponse.json();
+          if (data.success && data.conversation) {
+            setConversationUuid(data.conversation.uuid);
+            setMessages(data.conversation.messages.map((msg: any) => ({
+              id: msg.id,
+              role: msg.role,
+              content: msg.content,
+              events: msg.eventLog || [],
+              createdAt: msg.createdAt
+            })));
+            setShowInitialUI(false);
+            setIsPublicView(true);
+            setIsLoadingChat(false);
+            return;
+          }
+        }
+
+        // Conversation not found
+        setError('Conversation not found');
+        navigate('/chat');
+      } catch (err) {
+        console.error('Error loading conversation:', err);
+        setError('Failed to load conversation');
+      } finally {
+        setIsLoadingChat(false);
+      }
+    };
+
+    if (!isLoading) {
+      loadConversation();
+    }
+  }, [chatId, isLoading, isAuthenticated]);
+
+  // Load conversation list for sidebar
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!isAuthenticated) return;
+
+      setLoadingConversations(true);
+      try {
+        const response = await fetch(`${baseUrl}/chat/list`, {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setConversations(data.conversations);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading conversations:', err);
+      } finally {
+        setLoadingConversations(false);
+      }
+    };
+
+    loadConversations();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    // Redirect to login if not authenticated and not viewing a public chat
+    if (!isLoading && !isAuthenticated && !chatId) {
       navigate('/login');
     }
-  }, [isLoading, isAuthenticated, navigate]);
+  }, [isLoading, isAuthenticated, navigate, chatId]);
 
   useEffect(() => {
     // Auto-detect location only if user is authenticated, has no location saved in their profile,
@@ -109,27 +228,23 @@ export default function ChatPage() {
     }
   };
 
-  const createConversation = async (): Promise<number | null> => {
+  const createConversation = async (): Promise<{ id: number; uuid: string } | null> => {
     try {
       console.log('Creating conversation...');
-      console.log('User authenticated:', isAuthenticated);
-      console.log('User data:', user);
-      console.log('All cookies:', document.cookie);
       
       const response = await fetch(`${baseUrl}/chat/new`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          initialLocation: location || null
+        })
       });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.status === 401) {
         console.error('401 Unauthorized - Authentication failed');
-        console.log('Attempting to re-verify authentication...');
         
         // Try to verify auth again
         await useAuthStore.getState().verify();
@@ -162,13 +277,9 @@ export default function ChatPage() {
 
       const data = await response.json();
       console.log('Conversation created:', data);
-      return data.conversation.id;
+      return { id: data.conversation.id, uuid: data.conversation.uuid };
     } catch (err) {
       console.error('Create conversation error:', err);
-      console.error('Error details:', {
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined
-      });
       
       setError(
         err instanceof Error ? err.message : 'Failed to start conversation. Please try refreshing the page.'
@@ -179,7 +290,7 @@ export default function ChatPage() {
 
   const sendMessage = async () => {
     const trimmedInput = inputValue.trim();
-    if (!trimmedInput || isStreaming) return;
+    if (!trimmedInput || isStreaming || isPublicView) return;
 
     // Hide initial UI on first message
     if (showInitialUI) {
@@ -187,11 +298,16 @@ export default function ChatPage() {
     }
 
     // Create conversation if needed
-    let convId = conversationId;
-    if (!convId) {
-      convId = await createConversation();
-      if (!convId) return;
-      setConversationId(convId);
+    let convUuid = conversationUuid;
+    if (!convUuid) {
+      const newConv = await createConversation();
+      if (!newConv) return;
+      setConversationId(newConv.id);
+      setConversationUuid(newConv.uuid);
+      convUuid = newConv.uuid;
+      
+      // Navigate to the new chat URL
+      navigate(`/chat/${newConv.uuid}`, { replace: true });
     }
 
     // Add user message to UI
@@ -207,7 +323,7 @@ export default function ChatPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          conversationId: convId,
+          conversationUuid: convUuid,
           message: trimmedInput,
           location: location || 'Unknown'
         })
@@ -261,16 +377,27 @@ export default function ChatPage() {
   const handleNewChat = () => {
     reset();
     setShowInitialUI(true);
+    navigate('/chat');
     setInputValue('');
   };
 
-  if (isLoading || !isAuthenticated) {
+  // Show loading state when loading chat or auth
+  if (isLoading || (!isAuthenticated && !chatId)) {
     return (
       <div className={styles.loadingContainer}>
         <div className={styles.loadingSpinner}></div>
         <p>
           {isLoading ? 'Loading your dashboard...' : 'Redirecting to login...'}
         </p>
+      </div>
+    );
+  }
+
+  if (isLoadingChat) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.loadingSpinner}></div>
+        <p>Loading conversation...</p>
       </div>
     );
   }
@@ -364,6 +491,10 @@ export default function ChatPage() {
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
         isMobile={isMobile}
+        conversations={conversations}
+        isLoadingConversations={isLoadingConversations}
+        onConversationClick={(uuid) => navigate(`/chat/${uuid}`)}
+        activeConversationUuid={conversationUuid}
       />
       {isMobile && sidebarOpen && (
         <div className={styles.backdrop} onClick={closeSidebar} />
@@ -480,7 +611,17 @@ export default function ChatPage() {
                 disabled={isStreaming || !inputValue.trim()}
               >
                 {isStreaming ? (
-                  <div className={styles.sendingSpinner}></div>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className={styles.thinkingIcon}
+                  >
+                    <circle cx="4" cy="12" r="2.5" />
+                    <circle cx="12" cy="12" r="2.5" />
+                    <circle cx="20" cy="12" r="2.5" />
+                  </svg>
                 ) : (
                   <svg
                     width="20"

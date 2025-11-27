@@ -323,13 +323,8 @@
   transform: none;
 }
 
-.sendingSpinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.thinkingIcon {
+  opacity: 0.9;
 }
 
 /* Responsive Design */

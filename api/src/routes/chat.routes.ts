@@ -5,10 +5,67 @@ import { requireAuth } from '../middleware/auth.middle.js';
 const chat: Router = express.Router();
 const prisma = new PrismaClient();
 
-// Apply authentication middleware to all chat routes
-chat.use(requireAuth);
-
 const MCP_URL = process.env.MCP_URL || 'https://mcp.usestrand.space';
+
+// Public endpoint - Get conversation by UUID (no auth required)
+chat.get('/public/:uuid', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { uuid } = req.params;
+
+    const conversation = await prisma.conversation.findUnique({
+      where: { uuid },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' }
+        },
+        user: {
+          select: {
+            firstName: true,
+            profilePicture: true
+          }
+        }
+      }
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Conversation not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      conversation: {
+        uuid: conversation.uuid,
+        title: conversation.title,
+        initialLocation: conversation.initialLocation,
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
+        user: {
+          firstName: conversation.user.firstName,
+          profilePicture: conversation.user.profilePicture
+        },
+        messages: conversation.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          eventLog: msg.eventLog,
+          createdAt: msg.createdAt
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Get public conversation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve conversation'
+    });
+  }
+});
+
+// Apply authentication middleware to remaining routes
+chat.use(requireAuth);
 
 // Create new conversation
 chat.post('/new', async (req: Request, res: Response): Promise<any> => {
@@ -17,6 +74,7 @@ chat.post('/new', async (req: Request, res: Response): Promise<any> => {
     console.log('User from middleware:', (req as any).user);
     
     const userId = (req as any).user?.id;
+    const { initialLocation } = req.body;
     
     if (!userId) {
       console.error('No userId found in request');
@@ -28,20 +86,40 @@ chat.post('/new', async (req: Request, res: Response): Promise<any> => {
 
     console.log('User ID:', userId);
 
+    // Credit cost is 0 for now
+    const creditCost = 0;
+
     const conversation = await prisma.conversation.create({
       data: {
         userId,
         title: null,
+        initialLocation: initialLocation || null,
+        creditCost,
         metadata: {}
       }
     });
 
-    console.log('Conversation created:', conversation.id);
+    // Deduct credits from user (currently 0, so no change)
+    if (creditCost > 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          credits: {
+            decrement: creditCost
+          }
+        }
+      });
+    }
+
+    console.log('Conversation created:', conversation.id, 'UUID:', conversation.uuid);
 
     res.status(201).json({
       success: true,
       conversation: {
         id: conversation.id,
+        uuid: conversation.uuid,
+        initialLocation: conversation.initialLocation,
+        creditCost: conversation.creditCost,
         createdAt: conversation.createdAt
       }
     });
@@ -52,13 +130,13 @@ chat.post('/new', async (req: Request, res: Response): Promise<any> => {
       error: error instanceof Error ? error.message : 'Failed to create conversation'
     });
   }
-});// Get conversation history
+});// Get conversation history by UUID (authenticated - for owner)
 chat.get(
-  '/history/:conversationId',
+  '/history/:uuid',
   async (req: Request, res: Response): Promise<any> => {
     try {
       const userId = (req as any).user?.id;
-      const { conversationId } = req.params;
+      const { uuid } = req.params;
 
       if (!userId) {
         return res.status(401).send('Unauthorized');
@@ -66,7 +144,7 @@ chat.get(
 
       const conversation = await prisma.conversation.findFirst({
         where: {
-          id: parseInt(conversationId),
+          uuid,
           userId
         },
         include: {
@@ -89,7 +167,10 @@ chat.get(
         success: true,
         conversation: {
           id: conversation.id,
+          uuid: (conversation as any).uuid,
           title: conversation.title,
+          initialLocation: (conversation as any).initialLocation,
+          creditCost: (conversation as any).creditCost,
           createdAt: conversation.createdAt,
           updatedAt: conversation.updatedAt,
           messages: conversation.messages.map((msg) => ({
@@ -115,7 +196,7 @@ chat.get(
   }
 );
 
-// List all conversations for user
+// List all conversations for user (grouped by date)
 chat.get('/list', async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
@@ -137,17 +218,52 @@ chat.get('/list', async (req: Request, res: Response): Promise<any> => {
       }
     });
 
-    res.json({
-      success: true,
-      conversations: conversations.map((conv) => ({
+    // Group conversations by time period
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const last7Days = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const last30Days = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const grouped = {
+      today: [] as any[],
+      yesterday: [] as any[],
+      last7Days: [] as any[],
+      last30Days: [] as any[],
+      older: [] as any[]
+    };
+
+    for (const conv of conversations) {
+      const convData = {
         id: conv.id,
+        uuid: (conv as any).uuid,
         title:
           conv.title ||
           conv.messages[0]?.content?.substring(0, 50) ||
           'New Conversation',
+        initialLocation: (conv as any).initialLocation,
         createdAt: conv.createdAt,
         updatedAt: conv.updatedAt
-      }))
+      };
+
+      const convDate = new Date(conv.updatedAt);
+      
+      if (convDate >= today) {
+        grouped.today.push(convData);
+      } else if (convDate >= yesterday) {
+        grouped.yesterday.push(convData);
+      } else if (convDate >= last7Days) {
+        grouped.last7Days.push(convData);
+      } else if (convDate >= last30Days) {
+        grouped.last30Days.push(convData);
+      } else {
+        grouped.older.push(convData);
+      }
+    }
+
+    res.json({
+      success: true,
+      conversations: grouped
     });
   } catch (error) {
     console.error('List conversations error:', error);
@@ -162,25 +278,25 @@ chat.get('/list', async (req: Request, res: Response): Promise<any> => {
 chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).user?.id;
-    const { conversationId, message } = req.body;
+    const { conversationUuid, message } = req.body;
 
     if (!userId) {
       return res.status(401).send('Unauthorized');
     }
 
-    if (!message || !conversationId) {
+    if (!message || !conversationUuid) {
       return res.status(400).json({
         success: false,
-        error: 'Message and conversationId are required'
+        error: 'Message and conversationUuid are required'
       });
     }
 
-    // Verify conversation belongs to user
+    // Verify conversation belongs to user (using UUID)
     const conversation = await prisma.conversation.findFirst({
       where: {
-        id: parseInt(conversationId),
+        uuid: conversationUuid,
         userId
-      },
+      } as any,
       include: {
         messages: {
           orderBy: { createdAt: 'asc' }
@@ -211,7 +327,7 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
     res.setHeader('Connection', 'keep-alive');
 
     // Build conversation history for context
-    const history = conversation.messages.map((msg) => ({
+    const history = (conversation as any).messages.map((msg: any) => ({
       role: msg.role,
       content: msg.content
     }));
@@ -342,13 +458,13 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
   }
 });
 
-// Delete conversation
+// Delete conversation by UUID
 chat.delete(
-  '/:conversationId',
+  '/:uuid',
   async (req: Request, res: Response): Promise<any> => {
     try {
       const userId = (req as any).user?.id;
-      const { conversationId } = req.params;
+      const { uuid } = req.params;
 
       if (!userId) {
         return res.status(401).send('Unauthorized');
@@ -356,9 +472,9 @@ chat.delete(
 
       const conversation = await prisma.conversation.findFirst({
         where: {
-          id: parseInt(conversationId),
+          uuid,
           userId
-        }
+        } as any
       });
 
       if (!conversation) {

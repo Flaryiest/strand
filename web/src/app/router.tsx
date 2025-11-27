@@ -20,6 +20,7 @@ const router = createBrowserRouter(
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/chat" element={<ChatPage />} />
+      <Route path="/chat/:chatId" element={<ChatPage />} />
       <Route path="/auth/google/callback" element={<GoogleCallback />} />
       <Route path="/demo" element={<DemoPage />} />
       <Route path="/pricing" element={<PricingPage />} />

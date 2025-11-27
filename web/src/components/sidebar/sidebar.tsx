@@ -1,4 +1,5 @@
 import styles from './sidebar.module.css';
+import { GroupedConversations, ConversationSummary } from '@/stores/chat';
 
 interface SidebarItem {
   id: string;
@@ -13,14 +14,73 @@ interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   isMobile: boolean;
+  conversations?: GroupedConversations;
+  isLoadingConversations?: boolean;
+  onConversationClick?: (uuid: string) => void;
+  activeConversationUuid?: string | null;
+}
+
+interface ConversationGroupProps {
+  title: string;
+  conversations: ConversationSummary[];
+  isOpen: boolean;
+  onConversationClick?: (uuid: string) => void;
+  activeUuid?: string | null;
+}
+
+function ConversationGroup({ title, conversations, isOpen, onConversationClick, activeUuid }: ConversationGroupProps) {
+  if (conversations.length === 0) return null;
+  
+  return (
+    <div className={styles.conversationGroup}>
+      {isOpen && <h3 className={styles.groupTitle}>{title}</h3>}
+      <ul className={styles.conversationList}>
+        {conversations.map((conv) => (
+          <li key={conv.uuid}>
+            <button
+              className={`${styles.conversationItem} ${activeUuid === conv.uuid ? styles.active : ''}`}
+              onClick={() => onConversationClick?.(conv.uuid)}
+              title={!isOpen ? conv.title : ''}
+            >
+              <span className={styles.icon}>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </span>
+              {isOpen && <span className={styles.conversationTitle}>{conv.title}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export default function Sidebar({
   items,
   isOpen,
   onToggle,
-  isMobile
+  isMobile,
+  conversations,
+  isLoadingConversations,
+  onConversationClick,
+  activeConversationUuid
 }: SidebarProps) {
+  const hasConversations = conversations && (
+    conversations.today.length > 0 ||
+    conversations.yesterday.length > 0 ||
+    conversations.last7Days.length > 0 ||
+    conversations.last30Days.length > 0 ||
+    conversations.older.length > 0
+  );
+
   return (
     <aside
       className={`${styles.sidebar} ${isOpen ? styles.expanded : styles.minimized} ${isMobile ? styles.mobile : ''}`}
@@ -75,6 +135,55 @@ export default function Sidebar({
             </li>
           ))}
         </ul>
+
+        {/* Conversation History */}
+        {hasConversations && (
+          <div className={styles.conversationsSection}>
+            {isOpen && <div className={styles.sectionDivider} />}
+            
+            <ConversationGroup
+              title="Today"
+              conversations={conversations.today}
+              isOpen={isOpen}
+              onConversationClick={onConversationClick}
+              activeUuid={activeConversationUuid}
+            />
+            <ConversationGroup
+              title="Yesterday"
+              conversations={conversations.yesterday}
+              isOpen={isOpen}
+              onConversationClick={onConversationClick}
+              activeUuid={activeConversationUuid}
+            />
+            <ConversationGroup
+              title="Previous 7 Days"
+              conversations={conversations.last7Days}
+              isOpen={isOpen}
+              onConversationClick={onConversationClick}
+              activeUuid={activeConversationUuid}
+            />
+            <ConversationGroup
+              title="Previous 30 Days"
+              conversations={conversations.last30Days}
+              isOpen={isOpen}
+              onConversationClick={onConversationClick}
+              activeUuid={activeConversationUuid}
+            />
+            <ConversationGroup
+              title="Older"
+              conversations={conversations.older}
+              isOpen={isOpen}
+              onConversationClick={onConversationClick}
+              activeUuid={activeConversationUuid}
+            />
+          </div>
+        )}
+
+        {isLoadingConversations && isOpen && (
+          <div className={styles.loadingConversations}>
+            Loading conversations...
+          </div>
+        )}
       </nav>
     </aside>
   );
