@@ -22,7 +22,18 @@ export default function ReasoningStream({
             style={{ animationDelay: `${baseDelay}s` }}
           >
             <div className={styles.eventIcon}>
-              <div className={styles.spinner}></div>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z" />
+                <path d="M9 21h6" />
+                <path d="M9 18h6" />
+              </svg>
             </div>
             <div className={styles.eventContent}>
               <div className={styles.eventType}>Thinking</div>

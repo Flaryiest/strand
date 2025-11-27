@@ -102,6 +102,12 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  transition: opacity 0.15s ease;
+}
+
+.mainContent.transitioning {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 /* Hero Section */

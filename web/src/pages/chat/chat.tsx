@@ -44,7 +44,8 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [showInitialUI, setShowInitialUI] = useState(true);
   const [isPublicView, setIsPublicView] = useState(false);
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const streamContainerRef = useRef<HTMLDivElement>(null);
@@ -67,7 +68,7 @@ export default function ChatPage() {
         return;
       }
 
-      setIsLoadingChat(true);
+      setIsTransitioning(true);
       
       try {
         // Try to load as authenticated user first
@@ -90,7 +91,9 @@ export default function ChatPage() {
               })));
               setShowInitialUI(false);
               setIsPublicView(false);
-              setIsLoadingChat(false);
+              setShouldScrollToBottom(true);
+              // Brief delay for smooth transition
+              setTimeout(() => setIsTransitioning(false), 150);
               return;
             }
           }
@@ -111,7 +114,9 @@ export default function ChatPage() {
             })));
             setShowInitialUI(false);
             setIsPublicView(true);
-            setIsLoadingChat(false);
+            setShouldScrollToBottom(true);
+            // Brief delay for smooth transition
+            setTimeout(() => setIsTransitioning(false), 150);
             return;
           }
         }
@@ -119,11 +124,11 @@ export default function ChatPage() {
         // Conversation not found
         setError('Conversation not found');
         navigate('/chat');
+        setIsTransitioning(false);
       } catch (err) {
         console.error('Error loading conversation:', err);
         setError('Failed to load conversation');
-      } finally {
-        setIsLoadingChat(false);
+        setIsTransitioning(false);
       }
     };
 
@@ -210,6 +215,26 @@ export default function ChatPage() {
         streamContainerRef.current.scrollHeight;
     }
   }, [streamingEvents, isStreaming]);
+
+  // Scroll to bottom when loading a conversation
+  useEffect(() => {
+    if (shouldScrollToBottom && messages.length > 0) {
+      // First scroll to top instantly, then smooth scroll to bottom
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      
+      // Use requestAnimationFrame to ensure DOM has painted
+      requestAnimationFrame(() => {
+        // Small delay to let the user see the top before scrolling down
+        setTimeout(() => {
+          window.scrollTo({
+            top: document.documentElement.scrollHeight,
+            behavior: 'smooth'
+          });
+          setShouldScrollToBottom(false);
+        }, 100);
+      });
+    }
+  }, [shouldScrollToBottom, messages]);
 
   // Focus textarea after streaming completes
   useEffect(() => {
@@ -393,15 +418,6 @@ export default function ChatPage() {
     );
   }
 
-  if (isLoadingChat) {
-    return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.loadingSpinner}></div>
-        <p>Loading conversation...</p>
-      </div>
-    );
-  }
-
   const sidebarItems = [
     {
       id: 'chat',
@@ -422,26 +438,7 @@ export default function ChatPage() {
         setActiveView('chat');
         handleNewChat();
       },
-      active: activeView === 'chat'
-    },
-    {
-      id: 'history',
-      label: 'History',
-      icon: (
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-      ),
-      onClick: () => setActiveView('history'),
-      active: activeView === 'history'
+      active: activeView === 'chat' && !conversationUuid
     },
     {
       id: 'saved',
@@ -458,7 +455,10 @@ export default function ChatPage() {
           <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
         </svg>
       ),
-      onClick: () => setActiveView('saved'),
+      onClick: () => {
+        setActiveView('saved');
+        navigate('/chat');
+      },
       active: activeView === 'saved'
     },
     {
@@ -477,7 +477,10 @@ export default function ChatPage() {
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       ),
-      onClick: () => setActiveView('settings'),
+      onClick: () => {
+        setActiveView('settings');
+        navigate('/chat');
+      },
       active: activeView === 'settings'
     }
   ];
@@ -493,7 +496,10 @@ export default function ChatPage() {
         isMobile={isMobile}
         conversations={conversations}
         isLoadingConversations={isLoadingConversations}
-        onConversationClick={(uuid) => navigate(`/chat/${uuid}`)}
+        onConversationClick={(uuid) => {
+          setActiveView('chat');
+          navigate(`/chat/${uuid}`);
+        }}
         activeConversationUuid={conversationUuid}
       />
       {isMobile && sidebarOpen && (
@@ -509,7 +515,7 @@ export default function ChatPage() {
         />
 
         {/* Main Content */}
-        <main className={styles.mainContent}>
+        <main className={`${styles.mainContent} ${isTransitioning ? styles.transitioning : ''}`}>
           {/* Initial UI - shown when no messages */}
           {showInitialUI && messages.length === 0 && (
             <div
