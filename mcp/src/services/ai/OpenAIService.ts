@@ -3,9 +3,19 @@ import { TransparencyLayer } from '../ai/TransparencyLayer.js';
 import { toolRegistry } from '../tools/ToolRegistry.js';
 
 interface Message {
-  role: 'system' | 'user' | 'assistant' | 'function';
-  content: string;
-  name?: string;
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+}
+
+interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
 }
 
 interface OpenAIStreamOptions {
@@ -25,10 +35,15 @@ interface ChatCompletionChunk {
     delta: {
       role?: string;
       content?: string;
-      function_call?: {
-        name?: string;
-        arguments?: string;
-      };
+      tool_calls?: Array<{
+        index: number;
+        id?: string;
+        type?: string;
+        function?: {
+          name?: string;
+          arguments?: string;
+        };
+      }>;
     };
     finish_reason: string | null;
   }>;
@@ -54,12 +69,22 @@ export class OpenAIService {
 
     transparency.thinking('Preparing to send request to GPT-5.1...');
 
+    // Convert tool definitions to the new tools format
+    const tools = toolRegistry.getDefinitions().map(def => ({
+      type: 'function' as const,
+      function: {
+        name: def.name,
+        description: def.description,
+        parameters: def.parameters
+      }
+    }));
+
     // Build the request payload
     const payload = {
       model: this.model,
       messages,
-      functions: toolRegistry.getDefinitions(),
-      function_call: 'auto',
+      tools,
+      tool_choice: 'auto',
       stream: true,
       temperature: 0.7,
       max_completion_tokens: 2000
@@ -68,7 +93,7 @@ export class OpenAIService {
     transparency.analyzing('Sending request to OpenAI API...', {
       model: this.model,
       messageCount: messages.length,
-      availableFunctions: toolRegistry.getDefinitions().map(f => f.name)
+      availableTools: tools.map(t => t.function.name)
     });
 
     try {
@@ -95,7 +120,7 @@ export class OpenAIService {
       const decoder = new TextDecoder();
       let buffer = '';
       let fullContent = '';
-      let functionCall: { name: string; arguments: string } | null = null;
+      let toolCalls: Map<number, { id: string; name: string; arguments: string }> = new Map();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -126,49 +151,76 @@ export class OpenAIService {
                 }
               }
 
-              // Handle function call
-              if (delta.function_call) {
-                if (!functionCall) {
-                  functionCall = { name: '', arguments: '' };
-                }
-                if (delta.function_call.name) {
-                  functionCall.name = delta.function_call.name;
-                }
-                if (delta.function_call.arguments) {
-                  functionCall.arguments += delta.function_call.arguments;
+              // Handle tool calls (new format)
+              if (delta.tool_calls) {
+                for (const toolCallDelta of delta.tool_calls) {
+                  const index = toolCallDelta.index;
+                  
+                  if (!toolCalls.has(index)) {
+                    toolCalls.set(index, { id: '', name: '', arguments: '' });
+                  }
+                  
+                  const toolCall = toolCalls.get(index)!;
+                  
+                  if (toolCallDelta.id) {
+                    toolCall.id = toolCallDelta.id;
+                  }
+                  if (toolCallDelta.function?.name) {
+                    toolCall.name = toolCallDelta.function.name;
+                  }
+                  if (toolCallDelta.function?.arguments) {
+                    toolCall.arguments += toolCallDelta.function.arguments;
+                  }
                 }
               }
 
-              // Check if we're done
-              if (chunk.choices[0]?.finish_reason === 'function_call' && functionCall) {
-                transparency.analyzing('GPT-5.1 requested to call a function', {
-                  function: functionCall.name,
-                  arguments: functionCall.arguments
+              // Check if we're done with tool calls
+              if (chunk.choices[0]?.finish_reason === 'tool_calls' && toolCalls.size > 0) {
+                const toolCallsArray = Array.from(toolCalls.values());
+                
+                transparency.analyzing('GPT-5.1 requested to call tools', {
+                  tools: toolCallsArray.map(tc => tc.name)
                 });
 
-                // Execute the function
-                const result = await this.executeFunctionCall(
-                  functionCall.name,
-                  functionCall.arguments,
-                  transparency
-                );
+                // Execute all tool calls
+                const toolResults: Array<{ tool_call_id: string; result: any }> = [];
+                
+                for (const toolCall of toolCallsArray) {
+                  const result = await this.executeFunctionCall(
+                    toolCall.name,
+                    toolCall.arguments,
+                    transparency
+                  );
+                  toolResults.push({ tool_call_id: toolCall.id, result });
+                }
 
-                // Add function result to messages and continue the conversation
-                const updatedMessages = [
+                // Build updated messages with tool results
+                const assistantMessage: Message = {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: toolCallsArray.map(tc => ({
+                    id: tc.id,
+                    type: 'function' as const,
+                    function: {
+                      name: tc.name,
+                      arguments: tc.arguments
+                    }
+                  }))
+                };
+
+                const toolResultMessages: Message[] = toolResults.map(tr => ({
+                  role: 'tool' as const,
+                  content: JSON.stringify(tr.result),
+                  tool_call_id: tr.tool_call_id
+                }));
+
+                const updatedMessages: Message[] = [
                   ...messages,
-                  {
-                    role: 'assistant' as const,
-                    content: '',
-                    function_call: functionCall
-                  },
-                  {
-                    role: 'function' as const,
-                    name: functionCall.name,
-                    content: JSON.stringify(result)
-                  }
+                  assistantMessage,
+                  ...toolResultMessages
                 ];
 
-                transparency.deciding('Sending function result back to GPT-5.1 for final response...');
+                transparency.deciding('Sending tool results back to GPT-5.1 for final response...');
 
                 // Recursive call to get the final response
                 return await this.streamChatCompletion({
