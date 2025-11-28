@@ -217,13 +217,6 @@ export default function ChatPage() {
   // Auto-scroll to bottom when streaming
   useEffect(() => {
     if (isStreaming) {
-      console.log('[SCROLL DEBUG] Auto-scroll during streaming triggered', {
-        isStreaming,
-        streamingEventsCount: streamingEvents.length,
-        scrollHeight: document.documentElement.scrollHeight,
-        windowHeight: window.innerHeight,
-        currentScrollY: window.scrollY
-      });
       window.scrollTo({
         top: document.documentElement.scrollHeight,
         behavior: 'instant'
@@ -233,17 +226,7 @@ export default function ChatPage() {
 
   // Scroll to bottom when loading a conversation
   useEffect(() => {
-    console.log('[SCROLL DEBUG] Scroll effect check', {
-      shouldScrollToBottom,
-      messagesLength: messages.length,
-      scrollHeight: document.documentElement.scrollHeight,
-      windowHeight: window.innerHeight,
-      currentScrollY: window.scrollY
-    });
-    
     if (shouldScrollToBottom && messages.length > 0) {
-      console.log('[SCROLL DEBUG] Starting scroll animation - scrolling to top first');
-      
       // Temporarily disable smooth scroll behavior on html element
       const htmlElement = document.documentElement;
       const originalScrollBehavior = htmlElement.style.scrollBehavior;
@@ -251,7 +234,6 @@ export default function ChatPage() {
       
       // First scroll to top instantly
       window.scrollTo(0, 0);
-      console.log('[SCROLL DEBUG] After scrollTo top, scrollY:', window.scrollY);
       
       // Force the scroll position to stay at top
       const preventScroll = () => {
@@ -267,22 +249,10 @@ export default function ChatPage() {
         // Restore scroll behavior for smooth animation
         htmlElement.style.scrollBehavior = originalScrollBehavior;
         
-        const targetScroll = document.documentElement.scrollHeight;
-        console.log('[SCROLL DEBUG] About to smooth scroll to bottom', {
-          targetScroll,
-          currentScrollY: window.scrollY,
-          windowHeight: window.innerHeight
-        });
-        
         window.scrollTo({
-          top: targetScroll,
+          top: document.documentElement.scrollHeight,
           behavior: 'smooth'
         });
-        
-        // Log after a short delay to see if scroll happened
-        setTimeout(() => {
-          console.log('[SCROLL DEBUG] After smooth scroll attempt, scrollY:', window.scrollY);
-        }, 500);
         
         setShouldScrollToBottom(false);
       }, 150);
