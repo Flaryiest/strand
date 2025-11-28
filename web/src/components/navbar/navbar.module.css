@@ -1,41 +1,69 @@
-.navbarContainer {
+.header {
   display: flex;
-  width: 100%;
-  min-height: 60px;
-  justify-content: center;
-  align-items: center;
-}
-
-.navbar {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-top: 20px;
-  width: 75dvw;
-  max-width: 100%;
+  align-items: center;
+  padding: 1.25rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .logo {
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   font-weight: 600;
+  color: rgb(17, 17, 17);
+  text-decoration: none;
+  letter-spacing: -0.02em;
 }
 
-.links {
+.nav {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 2rem;
 }
 
-.link {
-  font-weight: 500;
-  color: rgb(19, 19, 19);
+.navLink {
+  color: rgb(100, 100, 100);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
 }
 
-.login {
-  background-color: black;
+.navLink:hover {
+  color: rgb(17, 17, 17);
+}
+
+.loginButton {
+  padding: 0.5rem 1.25rem;
+  background: rgb(17, 17, 17);
   color: white;
-  padding: 0.4rem 1.2rem;
   border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.95rem;
   font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.loginButton:hover {
+  background: rgb(0, 0, 0);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .nav {
+    gap: 1rem;
+  }
+
+  .navLink {
+    font-size: 0.875rem;
+  }
+
+  .loginButton {
+    padding: 0.4rem 1rem;
+    font-size: 0.875rem;
+  }
 }

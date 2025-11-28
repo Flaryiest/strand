@@ -1,28 +1,13 @@
 import { Link } from 'react-router-dom';
 import styles from './pricing.module.css';
+import Navbar from '@/components/navbar/navbar';
+import Footer from '@/components/footer/footer';
 
 export default function PricingPage() {
   return (
     <div className={styles.pageContainer}>
+      <Navbar />
       <div className={styles.contentWrapper}>
-        {/* Header */}
-        <header className={styles.header}>
-          <Link to="/" className={styles.logo}>
-            Strand
-          </Link>
-          <nav className={styles.nav}>
-            <Link to="/demo" className={styles.navLink}>
-              Demo
-            </Link>
-            <Link to="/pricing" className={styles.navLink}>
-              Pricing
-            </Link>
-            <Link to="/login" className={styles.loginButton}>
-              Sign In
-            </Link>
-          </nav>
-        </header>
-
         {/* Hero Section */}
         <section className={styles.heroSection}>
           <h1 className={styles.heroTitle}>Simple, Transparent Pricing</h1>
@@ -323,20 +308,9 @@ export default function PricingPage() {
             </div>
           </div>
         </section>
-
-        {/* Footer */}
-        <footer className={styles.footer}>
-          <p className={styles.footerText}>
-            Questions?{' '}
-            <a
-              href="mailto:contact@usestrand.space"
-              className={styles.footerLink}
-            >
-              Contact us
-            </a>
-          </p>
-        </footer>
       </div>
+
+      <Footer />
     </div>
   );
 }

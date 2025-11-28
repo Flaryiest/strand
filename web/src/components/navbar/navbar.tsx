@@ -3,23 +3,21 @@ import { Link } from 'react-router-dom';
 
 export default function Navbar() {
   return (
-    <div className={styles.navbarContainer}>
-      <div className={styles.navbar}>
-        <Link to="/" className={styles.logo}>
-          Strand
+    <header className={styles.header}>
+      <Link to="/" className={styles.logo}>
+        Strand
+      </Link>
+      <nav className={styles.nav}>
+        <Link to="/demo" className={styles.navLink}>
+          Demo
         </Link>
-        <div className={styles.links}>
-          <Link to="/pricing" className={styles.link}>
-            Pricing
-          </Link>
-          <Link to="/demo" className={styles.link}>
-            Demo
-          </Link>
-          <Link to="/login" className={`${styles.link} ${styles.login}`}>
-            Login
-          </Link>
-        </div>
-      </div>
-    </div>
+        <Link to="/pricing" className={styles.navLink}>
+          Pricing
+        </Link>
+        <Link to="/login" className={styles.loginButton}>
+          Sign In
+        </Link>
+      </nav>
+    </header>
   );
 }
