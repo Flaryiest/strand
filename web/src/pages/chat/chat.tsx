@@ -48,7 +48,6 @@ export default function ChatPage() {
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const streamContainerRef = useRef<HTMLDivElement>(null);
 
   // Load conversation from URL if chatId is present
   useEffect(() => {
@@ -208,31 +207,85 @@ export default function ChatPage() {
     };
   }, []);
 
+  // Disable browser scroll restoration
+  useEffect(() => {
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   // Auto-scroll to bottom when streaming
   useEffect(() => {
-    if (isStreaming && streamContainerRef.current) {
-      streamContainerRef.current.scrollTop =
-        streamContainerRef.current.scrollHeight;
+    if (isStreaming) {
+      console.log('[SCROLL DEBUG] Auto-scroll during streaming triggered', {
+        isStreaming,
+        streamingEventsCount: streamingEvents.length,
+        scrollHeight: document.documentElement.scrollHeight,
+        windowHeight: window.innerHeight,
+        currentScrollY: window.scrollY
+      });
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'instant'
+      });
     }
   }, [streamingEvents, isStreaming]);
 
   // Scroll to bottom when loading a conversation
   useEffect(() => {
+    console.log('[SCROLL DEBUG] Scroll effect check', {
+      shouldScrollToBottom,
+      messagesLength: messages.length,
+      scrollHeight: document.documentElement.scrollHeight,
+      windowHeight: window.innerHeight,
+      currentScrollY: window.scrollY
+    });
+    
     if (shouldScrollToBottom && messages.length > 0) {
-      // First scroll to top instantly, then smooth scroll to bottom
-      window.scrollTo({ top: 0, behavior: 'instant' });
+      console.log('[SCROLL DEBUG] Starting scroll animation - scrolling to top first');
       
-      // Use requestAnimationFrame to ensure DOM has painted
-      requestAnimationFrame(() => {
-        // Small delay to let the user see the top before scrolling down
+      // Temporarily disable smooth scroll behavior on html element
+      const htmlElement = document.documentElement;
+      const originalScrollBehavior = htmlElement.style.scrollBehavior;
+      htmlElement.style.scrollBehavior = 'auto';
+      
+      // First scroll to top instantly
+      window.scrollTo(0, 0);
+      console.log('[SCROLL DEBUG] After scrollTo top, scrollY:', window.scrollY);
+      
+      // Force the scroll position to stay at top
+      const preventScroll = () => {
+        window.scrollTo(0, 0);
+      };
+      window.addEventListener('scroll', preventScroll);
+      
+      // Use setTimeout to let the DOM settle, then animate
+      setTimeout(() => {
+        // Remove the scroll lock
+        window.removeEventListener('scroll', preventScroll);
+        
+        // Restore scroll behavior for smooth animation
+        htmlElement.style.scrollBehavior = originalScrollBehavior;
+        
+        const targetScroll = document.documentElement.scrollHeight;
+        console.log('[SCROLL DEBUG] About to smooth scroll to bottom', {
+          targetScroll,
+          currentScrollY: window.scrollY,
+          windowHeight: window.innerHeight
+        });
+        
+        window.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth'
+        });
+        
+        // Log after a short delay to see if scroll happened
         setTimeout(() => {
-          window.scrollTo({
-            top: document.documentElement.scrollHeight,
-            behavior: 'smooth'
-          });
-          setShouldScrollToBottom(false);
-        }, 100);
-      });
+          console.log('[SCROLL DEBUG] After smooth scroll attempt, scrollY:', window.scrollY);
+        }, 500);
+        
+        setShouldScrollToBottom(false);
+      }, 150);
     }
   }, [shouldScrollToBottom, messages]);
 
@@ -528,7 +581,7 @@ export default function ChatPage() {
 
           {/* Streaming/Messages View */}
           {(messages.length > 0 || isStreaming) && (
-            <div className={styles.conversationView} ref={streamContainerRef}>
+            <div className={styles.conversationView}>
               {/* Display past messages */}
               {messages.map((msg) => (
                 <div key={msg.id} className={styles.messageBlock}>
