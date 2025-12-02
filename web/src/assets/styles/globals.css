@@ -161,6 +161,7 @@ body {
   width: 100%;
   box-sizing: border-box;
   height: 100dvh;
+  overflow-x: hidden;
 }
 
 a {
