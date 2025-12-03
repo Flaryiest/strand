@@ -6,6 +6,7 @@
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .logo {
@@ -14,12 +15,14 @@
   color: rgb(17, 17, 17);
   text-decoration: none;
   letter-spacing: -0.02em;
+  flex-shrink: 0;
 }
 
 .nav {
   display: flex;
   align-items: center;
   gap: 2rem;
+  flex-shrink: 0;
 }
 
 .navLink {
@@ -65,5 +68,28 @@
   .loginButton {
     padding: 0.4rem 1rem;
     font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 0.75rem 1rem;
+  }
+
+  .logo {
+    font-size: 1.25rem;
+  }
+
+  .nav {
+    gap: 0.5rem;
+  }
+
+  .navLink {
+    font-size: 0.8rem;
+  }
+
+  .loginButton {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
   }
 }
