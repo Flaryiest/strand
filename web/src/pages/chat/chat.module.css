@@ -122,6 +122,7 @@
   margin: 0 auto;
   padding: 22vh 2rem 3rem;
   animation: fadeIn 0.6s ease;
+  box-sizing: border-box;
 }
 
 .fadeOut {
