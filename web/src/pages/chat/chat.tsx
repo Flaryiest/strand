@@ -48,6 +48,8 @@ export default function ChatPage() {
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
 
   // Load conversation from URL if chatId is present
   useEffect(() => {
@@ -216,46 +218,30 @@ export default function ChatPage() {
 
   // Auto-scroll to bottom when streaming
   useEffect(() => {
-    if (isStreaming) {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: 'instant'
-      });
+    if (isStreaming && mainContentRef.current) {
+      const container = mainContentRef.current;
+      container.scrollTop = container.scrollHeight;
     }
   }, [streamingEvents, isStreaming]);
 
   // Scroll to bottom when loading a conversation
   useEffect(() => {
-    if (shouldScrollToBottom && messages.length > 0) {
-      // Temporarily disable smooth scroll behavior on html element
-      const htmlElement = document.documentElement;
-      const originalScrollBehavior = htmlElement.style.scrollBehavior;
-      htmlElement.style.scrollBehavior = 'auto';
+    if (shouldScrollToBottom && messages.length > 0 && mainContentRef.current) {
+      const container = mainContentRef.current;
       
-      // First scroll to top instantly
-      window.scrollTo(0, 0);
+      // First, instantly scroll to top of the container
+      container.scrollTop = 0;
       
-      // Force the scroll position to stay at top
-      const preventScroll = () => {
-        window.scrollTo(0, 0);
-      };
-      window.addEventListener('scroll', preventScroll);
-      
-      // Use setTimeout to let the DOM settle, then animate
-      setTimeout(() => {
-        // Remove the scroll lock
-        window.removeEventListener('scroll', preventScroll);
-        
-        // Restore scroll behavior for smooth animation
-        htmlElement.style.scrollBehavior = originalScrollBehavior;
-        
-        window.scrollTo({
-          top: document.documentElement.scrollHeight,
+      // Wait a moment at the top so user can see it, then smoothly scroll to bottom
+      const timer = setTimeout(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
           behavior: 'smooth'
         });
-        
         setShouldScrollToBottom(false);
-      }, 150);
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
   }, [shouldScrollToBottom, messages]);
 
@@ -538,7 +524,7 @@ export default function ChatPage() {
         />
 
         {/* Main Content */}
-        <main className={`${styles.mainContent} ${isTransitioning ? styles.transitioning : ''}`}>
+        <main ref={mainContentRef} className={`${styles.mainContent} ${isTransitioning ? styles.transitioning : ''}`}>
           {/* Initial UI - shown when no messages */}
           {showInitialUI && messages.length === 0 && (
             <div
@@ -609,6 +595,9 @@ export default function ChatPage() {
                   <span>{error}</span>
                 </div>
               )}
+              
+              {/* Scroll anchor */}
+              <div ref={messagesEndRef} />
             </div>
           )}
 
