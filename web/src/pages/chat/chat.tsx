@@ -9,6 +9,7 @@ import Sidebar from '@/components/sidebar/sidebar';
 import Topbar from '@/components/topbar/topbar';
 import LocationInput from '@/components/locationInput/locationInput';
 import ReasoningStream from '@/components/reasoningStream/reasoningStream';
+import ItineraryView from '@/components/itineraryView/itineraryView';
 import styles from './chat.module.css';
 
 export default function ChatPage() {
@@ -22,6 +23,7 @@ export default function ChatPage() {
     isStreaming,
     streamingEvents,
     accumulatedResponse,
+    streamingItinerary,
     error,
     conversations,
     isLoadingConversations,
@@ -88,6 +90,7 @@ export default function ChatPage() {
                 role: msg.role,
                 content: msg.content,
                 events: msg.eventLog || [],
+                itinerary: msg.metadata?.itinerary || undefined,
                 createdAt: msg.createdAt
               })));
               setShowInitialUI(false);
@@ -111,6 +114,7 @@ export default function ChatPage() {
               role: msg.role,
               content: msg.content,
               events: msg.eventLog || [],
+              itinerary: msg.metadata?.itinerary || undefined,
               createdAt: msg.createdAt
             })));
             setShowInitialUI(false);
@@ -560,7 +564,23 @@ export default function ChatPage() {
                         {msg.content}
                       </div>
                     </div>
+                  ) : msg.itinerary ? (
+                    // Render structured itinerary if available
+                    <div className={styles.itineraryMessage}>
+                      <ReasoningStream
+                        events={msg.events || []}
+                        accumulatedResponse=""
+                      />
+                      <ItineraryView
+                        itinerary={msg.itinerary}
+                        onRefine={() => {
+                          // Focus the input for follow-up
+                          textareaRef.current?.focus();
+                        }}
+                      />
+                    </div>
                   ) : (
+                    // Fallback to text-only response
                     <ReasoningStream
                       events={msg.events || []}
                       accumulatedResponse={msg.content}
@@ -571,10 +591,18 @@ export default function ChatPage() {
 
               {/* Active streaming */}
               {isStreaming && (
-                <ReasoningStream
-                  events={streamingEvents}
-                  accumulatedResponse={accumulatedResponse}
-                />
+                <div className={styles.streamingContainer}>
+                  <ReasoningStream
+                    events={streamingEvents}
+                    accumulatedResponse={accumulatedResponse}
+                  />
+                  {/* Show itinerary as it becomes available */}
+                  {streamingItinerary && (
+                    <ItineraryView
+                      itinerary={streamingItinerary}
+                    />
+                  )}
+                </div>
               )}
 
               {/* Error display */}

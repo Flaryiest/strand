@@ -136,13 +136,14 @@ app.post('/chat/stream', async (req: Request, res: Response) => {
           await new Promise(resolve => setTimeout(resolve, 20)); // Small delay for streaming effect
         }
 
-        // Send final completion event
+        // Send final completion event with itinerary data
         res.write(`data: ${JSON.stringify({ 
           type: 'done',
           step: transparency.getCurrentStep(),
           timestamp: new Date().toISOString(),
           data: {
             fullResponse: result.response,
+            itinerary: result.itinerary || null,
             conversationId,
             metadata: result.metadata
           }

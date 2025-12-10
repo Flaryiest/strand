@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { ItineraryRecommendation } from '@/types/recommendation.types';
 
 export interface StreamEvent {
   type:
@@ -22,6 +23,7 @@ export interface StreamEvent {
     reasoning?: string;
     progress?: number;
     fullResponse?: string;
+    itinerary?: ItineraryRecommendation;
   };
 }
 
@@ -30,6 +32,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   events?: StreamEvent[];
+  itinerary?: ItineraryRecommendation;
   createdAt: string;
 }
 
@@ -57,6 +60,7 @@ interface ChatState {
   isStreaming: boolean;
   streamingEvents: StreamEvent[];
   accumulatedResponse: string;
+  streamingItinerary: ItineraryRecommendation | null;
   error: string | null;
   conversations: GroupedConversations;
   isLoadingConversations: boolean;
@@ -88,6 +92,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isStreaming: false,
   streamingEvents: [],
   accumulatedResponse: '',
+  streamingItinerary: null,
   error: null,
   conversations: emptyGroupedConversations,
   isLoadingConversations: false,
@@ -114,6 +119,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: true,
       streamingEvents: [],
       accumulatedResponse: '',
+      streamingItinerary: null,
       error: null
     }));
   },
@@ -122,27 +128,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => {
       const newEvents = [...state.streamingEvents, event];
       let newAccumulated = state.accumulatedResponse;
+      let newItinerary = state.streamingItinerary;
 
       // Accumulate token events into response text
       if (event.type === 'token' && event.data.message) {
         newAccumulated += event.data.message;
       }
 
+      // Capture itinerary from done event
+      if (event.type === 'done' && event.data.itinerary) {
+        newItinerary = event.data.itinerary;
+      }
+
       return {
         streamingEvents: newEvents,
-        accumulatedResponse: newAccumulated
+        accumulatedResponse: newAccumulated,
+        streamingItinerary: newItinerary
       };
     });
   },
 
   completeStreaming: () => {
-    const { streamingEvents, accumulatedResponse } = get();
+    const { streamingEvents, accumulatedResponse, streamingItinerary } = get();
 
     const assistantMessage: Message = {
       id: Date.now(),
       role: 'assistant',
       content: accumulatedResponse,
       events: streamingEvents,
+      itinerary: streamingItinerary || undefined,
       createdAt: new Date().toISOString()
     };
 
@@ -150,7 +164,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [...state.messages, assistantMessage],
       isStreaming: false,
       streamingEvents: [],
-      accumulatedResponse: ''
+      accumulatedResponse: '',
+      streamingItinerary: null
     }));
   },
 
@@ -164,6 +179,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: false,
       streamingEvents: [],
       accumulatedResponse: '',
+      streamingItinerary: null,
       error: null
     })
 }));

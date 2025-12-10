@@ -7,7 +7,8 @@ import { TransparencyLayer } from '../ai/TransparencyLayer.js';
 import {
   ORCHESTRATOR_PLANNING_PROMPT,
   ORCHESTRATOR_EVAL_PROMPT,
-  SYNTHESIS_PROMPT
+  SYNTHESIS_PROMPT,
+  ITINERARY_SYNTHESIS_PROMPT
 } from '../../prompts/agentPrompts.js';
 
 interface AgentPlan {
@@ -36,8 +37,45 @@ interface OrchestratorOptions {
   transparency?: TransparencyLayer;
 }
 
+// Itinerary types matching frontend expectations
+interface PlaceRecommendation {
+  id: string;
+  name: string;
+  address: string;
+  rating?: number;
+  reviewCount?: number;
+  priceLevel?: number;
+  types: string[];
+  photoUrl?: string | null;
+  googleMapsUrl?: string;
+  reason: string;
+  highlights?: string[];
+  bestFor?: string;
+  location?: { lat: number; lng: number };
+}
+
+interface RecommendationSlot {
+  slotId: string;
+  slotLabel: string;
+  slotIcon?: string;
+  timeEstimate?: string | null;
+  primary: PlaceRecommendation;
+  alternatives: PlaceRecommendation[];
+  selectedIndex?: number;
+}
+
+interface ItineraryData {
+  id: string;
+  summary: string;
+  totalEstimatedTime?: string;
+  totalEstimatedCost?: string;
+  slots: RecommendationSlot[];
+  generatedAt: string;
+}
+
 interface SynthesizedResult {
   response: string;
+  itinerary?: ItineraryData;
   topRecommendations: any[];
   metadata: {
     agentsUsed: string[];
@@ -136,9 +174,16 @@ export class Orchestrator {
       }
     }
 
-    // Phase 4: Synthesize final response
+    // Phase 4: Synthesize final response with structured itinerary
     transparency?.deciding('Creating your personalized recommendations...');
-    const response = await this.synthesize(query, location, results, topRecommendations);
+    
+    // Generate both structured itinerary and text summary
+    const { response, itinerary } = await this.synthesizeWithItinerary(
+      query, 
+      location, 
+      results, 
+      topRecommendations
+    );
 
     const totalIterations = 
       (results.places?.iterations || 0) +
@@ -147,6 +192,7 @@ export class Orchestrator {
 
     return {
       response,
+      itinerary,
       topRecommendations,
       metadata: {
         agentsUsed: Object.keys(results).filter(k => (results as any)[k] !== null),
@@ -347,41 +393,77 @@ export class Orchestrator {
   }
 
   /**
-   * Synthesize final response from all gathered data
+   * Synthesize final response with structured itinerary data
    */
-  private async synthesize(
+  private async synthesizeWithItinerary(
     query: string,
     location: string | undefined,
     results: CombinedResults,
     topRecommendations: any[]
-  ): Promise<string> {
-    // Prepare aggregated data summary
+  ): Promise<{ response: string; itinerary?: ItineraryData }> {
+    // Prepare aggregated data with full place details for itinerary generation
     const aggregatedData = {
       placesCount: results.places?.results?.length || 0,
       webArticles: results.web?.results?.slice(0, 5) || [],
       redditThreads: results.reddit?.results?.slice(0, 5) || [],
-      placesHighlights: results.places?.results?.slice(0, 5).map((p: any) => ({
+      placesHighlights: results.places?.results?.slice(0, 10).map((p: any) => ({
         name: p.name,
         rating: p.rating,
+        reviewCount: p.userRatingsTotal,
         address: p.address,
-        priceLevel: p.priceLevel
+        priceLevel: p.priceLevel,
+        types: p.types,
+        placeId: p.placeId,
+        location: p.location
       })) || []
     };
 
-    const prompt = SYNTHESIS_PROMPT
-      .replace('{query}', query)
-      .replace('{location}', location || 'your area')
-      .replace('{aggregatedData}', JSON.stringify(aggregatedData, null, 2))
-      .replace('{topRecommendations}', JSON.stringify(topRecommendations, null, 2));
-
+    // Try to generate structured itinerary
+    let itinerary: ItineraryData | undefined;
+    
     try {
-      const response = await this.callLLM(prompt, this.model);
-      return response;
+      const itineraryPrompt = ITINERARY_SYNTHESIS_PROMPT
+        .replace('{query}', query)
+        .replace('{location}', location || 'your area')
+        .replace('{aggregatedData}', JSON.stringify(aggregatedData, null, 2))
+        .replace('{topRecommendations}', JSON.stringify(topRecommendations, null, 2));
+
+      const itineraryResponse = await this.callLLM(itineraryPrompt, this.model);
+      const parsedItinerary = this.parseJsonResponse<Omit<ItineraryData, 'id' | 'generatedAt'>>(itineraryResponse);
+      
+      // Add metadata
+      itinerary = {
+        ...parsedItinerary,
+        id: `itin-${Date.now()}`,
+        generatedAt: new Date().toISOString(),
+        slots: parsedItinerary.slots.map(slot => ({
+          ...slot,
+          selectedIndex: 0 // Default to primary selection
+        }))
+      };
+
+      console.log('[Orchestrator] Generated itinerary with', itinerary.slots.length, 'slots');
     } catch (error) {
-      console.error('[Orchestrator] Synthesis error:', error);
-      // Fallback: return a basic response
-      return this.generateFallbackResponse(topRecommendations);
+      console.error('[Orchestrator] Itinerary generation error:', error);
+      // Continue without structured itinerary
     }
+
+    // Generate text summary (always, as fallback/supplement)
+    let response: string;
+    try {
+      const textPrompt = SYNTHESIS_PROMPT
+        .replace('{query}', query)
+        .replace('{location}', location || 'your area')
+        .replace('{aggregatedData}', JSON.stringify(aggregatedData, null, 2))
+        .replace('{topRecommendations}', JSON.stringify(topRecommendations, null, 2));
+
+      response = await this.callLLM(textPrompt, this.model);
+    } catch (error) {
+      console.error('[Orchestrator] Text synthesis error:', error);
+      response = this.generateFallbackResponse(topRecommendations);
+    }
+
+    return { response, itinerary };
   }
 
   private generateFallbackResponse(recommendations: any[]): string {

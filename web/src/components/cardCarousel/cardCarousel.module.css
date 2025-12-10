@@ -1,0 +1,269 @@
+/* CardCarousel - Swappable recommendation cards */
+
+.container {
+  position: relative;
+  width: 100%;
+}
+
+/* Carousel Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.slotInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slotNumber {
+  width: 28px;
+  height: 28px;
+  background: #111;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.slotLabel {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111;
+  letter-spacing: -0.01em;
+}
+
+.timeEstimate {
+  font-size: 0.8125rem;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timeIcon {
+  color: #aaa;
+}
+
+/* Navigation */
+.navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navButton {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #666;
+}
+
+.navButton:hover:not(:disabled) {
+  border-color: #111;
+  color: #111;
+  background: #fafafa;
+}
+
+.navButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.counter {
+  font-size: 0.8125rem;
+  color: #666;
+  min-width: 48px;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Cards Container */
+.cardsWrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.cardsTrack {
+  display: flex;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cardSlide {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+/* Dots Indicator */
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dot:hover {
+  background: #bbb;
+}
+
+.dotActive {
+  background: #111;
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* Alternative Cards Preview */
+.alternativesPreview {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.alternativeThumb {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.alternativeThumb:hover {
+  border-color: #ddd;
+}
+
+.alternativeThumbActive {
+  border-color: #111;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.thumbImage {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #eee;
+}
+
+.thumbInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.thumbName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.thumbRating {
+  font-size: 0.75rem;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.thumbRatingIcon {
+  color: #f59e0b;
+  font-size: 0.6875rem;
+}
+
+/* Choice Label */
+.choiceLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #f0f0f0;
+  color: #666;
+}
+
+.choiceLabelPrimary {
+  background: #111;
+  color: #fff;
+}
+
+/* Swipe indicator for mobile */
+.swipeHint {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+@media (max-width: 768px) {
+  .swipeHint {
+    display: flex;
+  }
+  
+  .navigation {
+    display: none;
+  }
+  
+  .header {
+    margin-bottom: 12px;
+  }
+  
+  .alternativesPreview {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* Animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.cardSlide {
+  animation: slideIn 0.4s ease forwards;
+}
+

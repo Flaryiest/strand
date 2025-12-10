@@ -51,6 +51,7 @@ chat.get('/public/:uuid', async (req: Request, res: Response): Promise<any> => {
           role: msg.role,
           content: msg.content,
           eventLog: msg.eventLog,
+          metadata: msg.metadata,
           createdAt: msg.createdAt
         }))
       }
@@ -352,6 +353,7 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
     let fullResponse = '';
     let tokenCount = 0;
     let toolCallCount = 0;
+    let itineraryData: any = null;
 
     try {
       const response = await fetch(`${MCP_URL}/chat/stream`, {
@@ -402,6 +404,11 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
                 if (eventData.type === 'action') {
                   toolCallCount++;
                 }
+                // Capture itinerary data from done event
+                if (eventData.type === 'done' && eventData.data?.itinerary) {
+                  itineraryData = eventData.data.itinerary;
+                  console.log('[Chat] Captured itinerary with', itineraryData?.slots?.length || 0, 'slots');
+                }
               } catch (e) {
                 // Ignore parse errors for non-JSON lines
               }
@@ -412,14 +419,17 @@ chat.post('/stream', async (req: Request, res: Response): Promise<any> => {
 
       const processingTime = Date.now() - startTime;
 
-      // Save assistant message to database
+      // Save assistant message to database with itinerary in metadata
       await prisma.message.create({
         data: {
           conversationId: conversation.id,
           role: 'assistant',
           content: fullResponse,
           eventLog,
-          metadata: { mcpPayload },
+          metadata: { 
+            mcpPayload,
+            itinerary: itineraryData // Store structured itinerary
+          },
           tokensUsed: tokenCount,
           toolCallsCount: toolCallCount,
           processingTime

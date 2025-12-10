@@ -1,0 +1,348 @@
+/* ItineraryView - Full recommendation layout */
+
+.container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Header Section */
+.header {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: 0.9375rem;
+  color: #666;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Meta Info Bar */
+.metaBar {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 20px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #f3f4f6 100%);
+  border-radius: 12px;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #555;
+}
+
+.metaIcon {
+  color: #888;
+}
+
+.metaValue {
+  font-weight: 600;
+  color: #333;
+}
+
+/* Slots Container */
+.slotsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* Connection Line between slots */
+.slotWrapper {
+  position: relative;
+}
+
+.slotWrapper:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -24px;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 16px;
+  background: linear-gradient(to bottom, #ddd 0%, transparent 100%);
+}
+
+/* Connector dots */
+.connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0;
+  color: #ccc;
+}
+
+.connectorDot {
+  width: 4px;
+  height: 4px;
+  background: #ddd;
+  border-radius: 50%;
+}
+
+.connectorLine {
+  width: 2px;
+  height: 20px;
+  background: linear-gradient(to bottom, #ddd, transparent);
+}
+
+/* Travel Info Between Stops */
+.travelInfo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  margin: -8px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.travelBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  color: #666;
+}
+
+.travelIcon {
+  color: #999;
+}
+
+/* Summary Section */
+.summary {
+  margin-top: 40px;
+  padding: 24px;
+  background: #111;
+  border-radius: 16px;
+  color: #fff;
+}
+
+.summaryTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summaryIcon {
+  color: #888;
+}
+
+.summaryText {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+}
+
+/* Actions Bar */
+.actionsBar {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+  padding: 20px 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.actionButton {
+  flex: 1;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.primaryButton {
+  background: #111;
+  color: #fff;
+}
+
+.primaryButton:hover {
+  background: #000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.secondaryButton {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.secondaryButton:hover {
+  background: #eee;
+}
+
+.ghostButton {
+  background: transparent;
+  color: #666;
+  border: 1px solid #e5e5e5;
+}
+
+.ghostButton:hover {
+  border-color: #ccc;
+  background: #fafafa;
+}
+
+/* Timestamp */
+.timestamp {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #aaa;
+  margin-top: 24px;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 20px;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #111;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingText {
+  font-size: 0.9375rem;
+  color: #666;
+}
+
+/* Empty State */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+}
+
+.emptyIcon {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.emptyText {
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.container {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.slotWrapper {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.slotWrapper:nth-child(1) { animation-delay: 0.1s; }
+.slotWrapper:nth-child(2) { animation-delay: 0.2s; }
+.slotWrapper:nth-child(3) { animation-delay: 0.3s; }
+.slotWrapper:nth-child(4) { animation-delay: 0.4s; }
+.slotWrapper:nth-child(5) { animation-delay: 0.5s; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 1rem;
+  }
+  
+  .metaBar {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  
+  .metaItem {
+    font-size: 0.8125rem;
+  }
+  
+  .slotsContainer {
+    gap: 32px;
+  }
+  
+  .summary {
+    padding: 20px;
+  }
+  
+  .actionsBar {
+    flex-direction: column;
+  }
+  
+  .header {
+    margin-bottom: 24px;
+  }
+  
+  .title {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 0.75rem;
+  }
+  
+  .metaBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .slotsContainer {
+    gap: 24px;
+  }
+}
+
