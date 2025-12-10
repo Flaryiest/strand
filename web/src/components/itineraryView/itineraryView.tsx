@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   ItineraryRecommendation,
   PlaceRecommendation
@@ -17,24 +17,6 @@ export default function ItineraryView({
   onViewFullMap,
   onRefine
 }: ItineraryViewProps) {
-  const [selections, setSelections] = useState<Record<string, number>>(() => {
-    // Initialize with default selections
-    const initial: Record<string, number> = {};
-    itinerary.slots.forEach((slot) => {
-      initial[slot.slotId] = slot.selectedIndex || 0;
-    });
-    return initial;
-  });
-
-  const handleSelectionChange = useCallback(
-    (slotId: string, selectedIndex: number) => {
-      setSelections((prev) => ({
-        ...prev,
-        [slotId]: selectedIndex
-      }));
-    },
-    []
-  );
 
   const handleViewOnMap = useCallback((place: PlaceRecommendation) => {
     // For now, open Google Maps URL if available
@@ -170,7 +152,6 @@ export default function ItineraryView({
               <CardCarousel
                 slot={slot}
                 slotNumber={index + 1}
-                onSelectionChange={handleSelectionChange}
                 onViewOnMap={handleViewOnMap}
               />
             </div>
