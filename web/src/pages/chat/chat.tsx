@@ -72,7 +72,7 @@ export default function ChatPage() {
       }
 
       setIsTransitioning(true);
-      
+
       try {
         // Try to load as authenticated user first
         if (isAuthenticated) {
@@ -85,14 +85,16 @@ export default function ChatPage() {
             if (data.success && data.conversation) {
               setConversationId(data.conversation.id);
               setConversationUuid(data.conversation.uuid);
-              setMessages(data.conversation.messages.map((msg: any) => ({
-                id: msg.id,
-                role: msg.role,
-                content: msg.content,
-                events: msg.eventLog || [],
-                itinerary: msg.metadata?.itinerary || undefined,
-                createdAt: msg.createdAt
-              })));
+              setMessages(
+                data.conversation.messages.map((msg: any) => ({
+                  id: msg.id,
+                  role: msg.role,
+                  content: msg.content,
+                  events: msg.eventLog || [],
+                  itinerary: msg.metadata?.itinerary || undefined,
+                  createdAt: msg.createdAt
+                }))
+              );
               setShowInitialUI(false);
               setIsPublicView(false);
               setShouldScrollToBottom(true);
@@ -109,14 +111,16 @@ export default function ChatPage() {
           const data = await publicResponse.json();
           if (data.success && data.conversation) {
             setConversationUuid(data.conversation.uuid);
-            setMessages(data.conversation.messages.map((msg: any) => ({
-              id: msg.id,
-              role: msg.role,
-              content: msg.content,
-              events: msg.eventLog || [],
-              itinerary: msg.metadata?.itinerary || undefined,
-              createdAt: msg.createdAt
-            })));
+            setMessages(
+              data.conversation.messages.map((msg: any) => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+                events: msg.eventLog || [],
+                itinerary: msg.metadata?.itinerary || undefined,
+                createdAt: msg.createdAt
+              }))
+            );
             setShowInitialUI(false);
             setIsPublicView(true);
             setShouldScrollToBottom(true);
@@ -232,10 +236,10 @@ export default function ChatPage() {
   useEffect(() => {
     if (shouldScrollToBottom && messages.length > 0 && mainContentRef.current) {
       const container = mainContentRef.current;
-      
+
       // First, instantly scroll to top of the container
       container.scrollTop = 0;
-      
+
       // Wait a moment at the top so user can see it, then smoothly scroll to bottom
       const timer = setTimeout(() => {
         container.scrollTo({
@@ -244,7 +248,7 @@ export default function ChatPage() {
         });
         setShouldScrollToBottom(false);
       }, 500);
-      
+
       return () => clearTimeout(timer);
     }
   }, [shouldScrollToBottom, messages]);
@@ -266,10 +270,13 @@ export default function ChatPage() {
     }
   };
 
-  const createConversation = async (): Promise<{ id: number; uuid: string } | null> => {
+  const createConversation = async (): Promise<{
+    id: number;
+    uuid: string;
+  } | null> => {
     try {
       console.log('Creating conversation...');
-      
+
       const response = await fetch(`${baseUrl}/chat/new`, {
         method: 'POST',
         credentials: 'include',
@@ -283,11 +290,11 @@ export default function ChatPage() {
 
       if (response.status === 401) {
         console.error('401 Unauthorized - Authentication failed');
-        
+
         // Try to verify auth again
         await useAuthStore.getState().verify();
         const authCheck = useAuthStore.getState().isAuthenticated;
-        
+
         if (!authCheck) {
           setError('Session expired. Please log in again.');
           setTimeout(() => navigate('/login'), 2000);
@@ -302,14 +309,14 @@ export default function ChatPage() {
           statusText: response.statusText,
           body: errorText
         });
-        
+
         let errorData;
         try {
           errorData = JSON.parse(errorText);
         } catch {
           errorData = { error: errorText || 'Failed to create conversation' };
         }
-        
+
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
@@ -318,9 +325,11 @@ export default function ChatPage() {
       return { id: data.conversation.id, uuid: data.conversation.uuid };
     } catch (err) {
       console.error('Create conversation error:', err);
-      
+
       setError(
-        err instanceof Error ? err.message : 'Failed to start conversation. Please try refreshing the page.'
+        err instanceof Error
+          ? err.message
+          : 'Failed to start conversation. Please try refreshing the page.'
       );
       return null;
     }
@@ -343,7 +352,7 @@ export default function ChatPage() {
       setConversationId(newConv.id);
       setConversationUuid(newConv.uuid);
       convUuid = newConv.uuid;
-      
+
       // Navigate to the new chat URL
       navigate(`/chat/${newConv.uuid}`, { replace: true });
     }
@@ -528,7 +537,10 @@ export default function ChatPage() {
         />
 
         {/* Main Content */}
-        <main ref={mainContentRef} className={`${styles.mainContent} ${isTransitioning ? styles.transitioning : ''}`}>
+        <main
+          ref={mainContentRef}
+          className={`${styles.mainContent} ${isTransitioning ? styles.transitioning : ''}`}
+        >
           {/* Initial UI - shown when no messages */}
           {showInitialUI && messages.length === 0 && (
             <div
@@ -598,9 +610,7 @@ export default function ChatPage() {
                   />
                   {/* Show itinerary as it becomes available */}
                   {streamingItinerary && (
-                    <ItineraryView
-                      itinerary={streamingItinerary}
-                    />
+                    <ItineraryView itinerary={streamingItinerary} />
                   )}
                 </div>
               )}
@@ -623,7 +633,7 @@ export default function ChatPage() {
                   <span>{error}</span>
                 </div>
               )}
-              
+
               {/* Scroll anchor */}
               <div ref={messagesEndRef} />
             </div>

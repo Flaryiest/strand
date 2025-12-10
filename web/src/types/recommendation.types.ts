@@ -41,4 +41,3 @@ export interface ItineraryRecommendation {
   slots: RecommendationSlot[];
   generatedAt: string;
 }
-

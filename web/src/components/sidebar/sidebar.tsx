@@ -28,9 +28,15 @@ interface ConversationGroupProps {
   activeUuid?: string | null;
 }
 
-function ConversationGroup({ title, conversations, isOpen, onConversationClick, activeUuid }: ConversationGroupProps) {
+function ConversationGroup({
+  title,
+  conversations,
+  isOpen,
+  onConversationClick,
+  activeUuid
+}: ConversationGroupProps) {
   if (conversations.length === 0) return null;
-  
+
   return (
     <div className={styles.conversationGroup}>
       {isOpen && <h3 className={styles.groupTitle}>{title}</h3>}
@@ -54,7 +60,9 @@ function ConversationGroup({ title, conversations, isOpen, onConversationClick, 
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
               </span>
-              {isOpen && <span className={styles.conversationTitle}>{conv.title}</span>}
+              {isOpen && (
+                <span className={styles.conversationTitle}>{conv.title}</span>
+              )}
             </button>
           </li>
         ))}
@@ -73,13 +81,13 @@ export default function Sidebar({
   onConversationClick,
   activeConversationUuid
 }: SidebarProps) {
-  const hasConversations = conversations && (
-    conversations.today.length > 0 ||
-    conversations.yesterday.length > 0 ||
-    conversations.last7Days.length > 0 ||
-    conversations.last30Days.length > 0 ||
-    conversations.older.length > 0
-  );
+  const hasConversations =
+    conversations &&
+    (conversations.today.length > 0 ||
+      conversations.yesterday.length > 0 ||
+      conversations.last7Days.length > 0 ||
+      conversations.last30Days.length > 0 ||
+      conversations.older.length > 0);
 
   return (
     <aside
@@ -140,7 +148,7 @@ export default function Sidebar({
         {hasConversations && (
           <div className={styles.conversationsSection}>
             {isOpen && <div className={styles.sectionDivider} />}
-            
+
             <ConversationGroup
               title="Today"
               conversations={conversations.today}

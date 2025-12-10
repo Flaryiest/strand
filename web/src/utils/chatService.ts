@@ -42,7 +42,8 @@ export async function createConversation(): Promise<Conversation> {
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
     throw new Error(
-      errorData?.error || `Failed to create conversation: ${response.statusText}`
+      errorData?.error ||
+        `Failed to create conversation: ${response.statusText}`
     );
   }
 
@@ -62,7 +63,9 @@ export async function getConversationHistory(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to get conversation history: ${response.statusText}`);
+    throw new Error(
+      `Failed to get conversation history: ${response.statusText}`
+    );
   }
 
   const data = await response.json();
@@ -89,7 +92,9 @@ export async function listConversations(): Promise<Conversation[]> {
 /**
  * Delete a conversation
  */
-export async function deleteConversation(conversationId: number): Promise<void> {
+export async function deleteConversation(
+  conversationId: number
+): Promise<void> {
   const response = await fetch(`${baseUrl}/chat/${conversationId}`, {
     method: 'DELETE',
     credentials: 'include'

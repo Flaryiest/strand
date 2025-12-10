@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
-import { RecommendationSlot, PlaceRecommendation } from '@/types/recommendation.types';
+import {
+  RecommendationSlot,
+  PlaceRecommendation
+} from '@/types/recommendation.types';
 import LocationCard from '@/components/locationCard/locationCard';
 import styles from './cardCarousel.module.css';
 
@@ -17,7 +20,7 @@ export default function CardCarousel({
   onViewOnMap
 }: CardCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(slot.selectedIndex || 0);
-  
+
   // Combine primary with alternatives for navigation
   const allOptions = [slot.primary, ...slot.alternatives];
   const hasMultiple = allOptions.length > 1;
@@ -29,15 +32,19 @@ export default function CardCarousel({
   }, [selectedIndex, allOptions.length, slot.slotId, onSelectionChange]);
 
   const goToPrev = useCallback(() => {
-    const prevIndex = selectedIndex === 0 ? allOptions.length - 1 : selectedIndex - 1;
+    const prevIndex =
+      selectedIndex === 0 ? allOptions.length - 1 : selectedIndex - 1;
     setSelectedIndex(prevIndex);
     onSelectionChange?.(slot.slotId, prevIndex);
   }, [selectedIndex, allOptions.length, slot.slotId, onSelectionChange]);
 
-  const goToIndex = useCallback((index: number) => {
-    setSelectedIndex(index);
-    onSelectionChange?.(slot.slotId, index);
-  }, [slot.slotId, onSelectionChange]);
+  const goToIndex = useCallback(
+    (index: number) => {
+      setSelectedIndex(index);
+      onSelectionChange?.(slot.slotId, index);
+    },
+    [slot.slotId, onSelectionChange]
+  );
 
   const getChoiceLabel = (index: number) => {
     if (index === 0) return 'Top Pick';
@@ -58,7 +65,15 @@ export default function CardCarousel({
           </span>
           {slot.timeEstimate && (
             <span className={styles.timeEstimate}>
-              <svg className={styles.timeIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className={styles.timeIcon}
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
@@ -69,24 +84,38 @@ export default function CardCarousel({
 
         {hasMultiple && (
           <div className={styles.navigation}>
-            <button 
-              className={styles.navButton} 
+            <button
+              className={styles.navButton}
               onClick={goToPrev}
               aria-label="Previous option"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
             <span className={styles.counter}>
               {selectedIndex + 1} / {allOptions.length}
             </span>
-            <button 
-              className={styles.navButton} 
+            <button
+              className={styles.navButton}
               onClick={goToNext}
               aria-label="Next option"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
@@ -96,7 +125,7 @@ export default function CardCarousel({
 
       {/* Current Card Display */}
       <div className={styles.cardsWrapper}>
-        <div 
+        <div
           className={styles.cardsTrack}
           style={{ transform: `translateX(-${selectedIndex * 100}%)` }}
         >
@@ -136,8 +165,8 @@ export default function CardCarousel({
               onClick={() => goToIndex(idx)}
             >
               {place.photoUrl ? (
-                <img 
-                  src={place.photoUrl} 
+                <img
+                  src={place.photoUrl}
                   alt={place.name}
                   className={styles.thumbImage}
                 />
@@ -148,14 +177,22 @@ export default function CardCarousel({
                 <div className={styles.thumbName}>{place.name}</div>
                 {place.rating && (
                   <div className={styles.thumbRating}>
-                    <svg className={styles.thumbRatingIcon} width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <svg
+                      className={styles.thumbRatingIcon}
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                     {place.rating.toFixed(1)}
                   </div>
                 )}
               </div>
-              <span className={`${styles.choiceLabel} ${idx === 0 ? styles.choiceLabelPrimary : ''}`}>
+              <span
+                className={`${styles.choiceLabel} ${idx === 0 ? styles.choiceLabelPrimary : ''}`}
+              >
                 {getChoiceLabel(idx)}
               </span>
             </button>
@@ -166,13 +203,20 @@ export default function CardCarousel({
       {/* Mobile Swipe Hint */}
       {hasMultiple && (
         <div className={styles.swipeHint}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
-          Swipe to see {allOptions.length - 1} more option{allOptions.length > 2 ? 's' : ''}
+          Swipe to see {allOptions.length - 1} more option
+          {allOptions.length > 2 ? 's' : ''}
         </div>
       )}
     </div>
   );
 }
-

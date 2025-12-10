@@ -98,12 +98,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoadingConversations: false,
 
   setConversationId: (id) => set({ conversationId: id }),
-  
+
   setConversationUuid: (uuid) => set({ conversationUuid: uuid }),
 
   setConversations: (conversations) => set({ conversations }),
 
-  setLoadingConversations: (loading) => set({ isLoadingConversations: loading }),
+  setLoadingConversations: (loading) =>
+    set({ isLoadingConversations: loading }),
 
   setMessages: (messages) => set({ messages }),
 

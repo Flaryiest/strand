@@ -288,44 +288,54 @@
   animation: fadeInUp 0.5s ease forwards;
 }
 
-.slotWrapper:nth-child(1) { animation-delay: 0.1s; }
-.slotWrapper:nth-child(2) { animation-delay: 0.2s; }
-.slotWrapper:nth-child(3) { animation-delay: 0.3s; }
-.slotWrapper:nth-child(4) { animation-delay: 0.4s; }
-.slotWrapper:nth-child(5) { animation-delay: 0.5s; }
+.slotWrapper:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.slotWrapper:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.slotWrapper:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.slotWrapper:nth-child(4) {
+  animation-delay: 0.4s;
+}
+.slotWrapper:nth-child(5) {
+  animation-delay: 0.5s;
+}
 
 /* Responsive */
 @media (max-width: 768px) {
   .container {
     padding: 0 1rem;
   }
-  
+
   .metaBar {
     flex-wrap: wrap;
     gap: 12px;
     padding: 14px 16px;
   }
-  
+
   .metaItem {
     font-size: 0.8125rem;
   }
-  
+
   .slotsContainer {
     gap: 32px;
   }
-  
+
   .summary {
     padding: 20px;
   }
-  
+
   .actionsBar {
     flex-direction: column;
   }
-  
+
   .header {
     margin-bottom: 24px;
   }
-  
+
   .title {
     font-size: 1.25rem;
   }
@@ -335,14 +345,13 @@
   .container {
     padding: 0 0.75rem;
   }
-  
+
   .metaBar {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .slotsContainer {
     gap: 24px;
   }
 }
-

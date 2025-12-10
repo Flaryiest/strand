@@ -5,7 +5,7 @@
   background: #ffffff;
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 
+  box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.04),
     0 4px 12px rgba(0, 0, 0, 0.03);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -14,7 +14,7 @@
 
 .card:hover {
   transform: translateY(-4px);
-  box-shadow: 
+  box-shadow:
     0 8px 30px rgba(0, 0, 0, 0.08),
     0 2px 8px rgba(0, 0, 0, 0.04);
 }
@@ -298,7 +298,7 @@
 /* Selected state */
 .selected {
   border-color: #111;
-  box-shadow: 
+  box-shadow:
     0 0 0 2px #111,
     0 8px 30px rgba(0, 0, 0, 0.12);
 }
@@ -324,17 +324,16 @@
   .imageContainer {
     height: 150px;
   }
-  
+
   .content {
     padding: 16px;
   }
-  
+
   .name {
     font-size: 1rem;
   }
-  
+
   .actions {
     flex-direction: column;
   }
 }
-
