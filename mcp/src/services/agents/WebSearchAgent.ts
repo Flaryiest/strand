@@ -1,6 +1,8 @@
 import { BaseToolAgent, AgentContext, EvaluationResult } from './BaseToolAgent.js';
 import { WEB_SEARCH_EVAL_PROMPT } from '../../prompts/agentPrompts.js';
 import { config } from '../../config.js';
+import { fetchText } from '../utils/http.js';
+import { extractReadableContentFromHtml, ExtractedPageContent } from '../utils/pageContent.js';
 
 interface WebSearchResult {
   title: string;
@@ -9,11 +11,16 @@ interface WebSearchResult {
   source?: string;
   date?: string;
   position: number;
+  content?: ExtractedPageContent;
+  contentError?: string;
 }
 
 interface WebSearchParams {
   query: string;
   num?: number;
+  fetchContent?: boolean;
+  maxPages?: number;
+  maxChars?: number;
 }
 
 export class WebSearchAgent extends BaseToolAgent {
@@ -31,7 +38,7 @@ export class WebSearchAgent extends BaseToolAgent {
     if (!query.toLowerCase().includes('best') && !query.toLowerCase().includes('top')) {
       query = `best ${query}`;
     }
-    return { query, num: 10 };
+    return { query, num: 10, fetchContent: true, maxPages: 3, maxChars: 6000 };
   }
 
   protected async search(params: WebSearchParams): Promise<WebSearchResult[]> {
@@ -70,6 +77,24 @@ export class WebSearchAgent extends BaseToolAgent {
         date: item.date,
         position: index + 1
       }));
+
+      const fetchContent = params.fetchContent !== false;
+      const maxPages = Math.min(Math.max(params.maxPages ?? 3, 0), 5);
+      const maxChars = Math.min(Math.max(params.maxChars ?? 6000, 500), 12000);
+
+      if (fetchContent && maxPages > 0 && results.length > 0) {
+        for (const r of results.slice(0, maxPages)) {
+          try {
+            const html = await fetchText(r.url, { timeoutMs: 12_000, maxBytes: 2_000_000 });
+            r.content = extractReadableContentFromHtml(r.url, html, params.query, {
+              maxChars,
+              maxExcerptSentences: 5
+            });
+          } catch (e) {
+            r.contentError = e instanceof Error ? e.message : 'Unknown error';
+          }
+        }
+      }
 
       console.log(`[WebSearchAgent] Found ${results.length} web results`);
       return results;

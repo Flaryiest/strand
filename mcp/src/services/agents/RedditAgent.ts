@@ -1,16 +1,15 @@
 import { BaseToolAgent, AgentContext, EvaluationResult } from './BaseToolAgent.js';
 import { REDDIT_EVAL_PROMPT } from '../../prompts/agentPrompts.js';
 import { config } from '../../config.js';
+import { fetchRedditThread, RedditThread } from '../utils/reddit.js';
 
 interface RedditSearchResult {
   title: string;
   subreddit: string;
   url: string;
-  selftext?: string;
-  score: number;
-  numComments: number;
-  created: number;
-  permalink: string;
+  snippet?: string;
+  thread?: RedditThread;
+  threadError?: string;
 }
 
 interface RedditSearchParams {
@@ -111,8 +110,7 @@ export class RedditAgent extends BaseToolAgent {
 
         // Transform results
         for (const item of data.organic || []) {
-          // Only include actual Reddit links
-          if (!item.link.includes('reddit.com')) continue;
+          if (!item.link?.includes('reddit.com')) continue;
 
           const subredditMatch = item.link.match(/reddit\.com\/r\/([^/]+)/);
           const extractedSubreddit = subredditMatch ? subredditMatch[1] : 'unknown';
@@ -121,11 +119,7 @@ export class RedditAgent extends BaseToolAgent {
             title: item.title,
             subreddit: extractedSubreddit,
             url: item.link,
-            selftext: item.snippet,
-            score: 0, // Not available from web search
-            numComments: this.extractCommentCount(item.title, item.snippet),
-            created: Date.now(),
-            permalink: item.link.replace('https://www.reddit.com', '')
+            snippet: item.snippet
           });
         }
       } catch (error) {
@@ -133,14 +127,25 @@ export class RedditAgent extends BaseToolAgent {
       }
     }
 
-    console.log(`[RedditAgent] Found ${results.length} Reddit results`);
-    return results;
-  }
+    // Dedupe by URL and then fetch thread JSON for top N threads.
+    const seen = new Set<string>();
+    const deduped = results.filter(r => {
+      if (seen.has(r.url)) return false;
+      seen.add(r.url);
+      return true;
+    });
 
-  private extractCommentCount(title: string, snippet: string): number {
-    // Try to extract comment count from title/snippet if present
-    const match = (title + snippet).match(/(\d+)\s*comments?/i);
-    return match ? parseInt(match[1]) : 0;
+    const maxThreads = 3;
+    for (const r of deduped.slice(0, maxThreads)) {
+      try {
+        r.thread = await fetchRedditThread(r.url, { maxComments: 25 });
+      } catch (e) {
+        r.threadError = e instanceof Error ? e.message : 'Unknown error';
+      }
+    }
+
+    console.log(`[RedditAgent] Found ${deduped.length} Reddit results`);
+    return deduped;
   }
 
   protected async evaluateResults(
@@ -165,10 +170,28 @@ export class RedditAgent extends BaseToolAgent {
       };
     }
 
+    const compactForPrompt = results.slice(0, 10).map(r => {
+      const thread = r.thread;
+      return {
+        title: thread?.title || r.title,
+        subreddit: thread?.subreddit || r.subreddit,
+        url: r.url,
+        upvotes: thread?.score || 0,
+        commentCount: thread?.numComments || 0,
+        postExcerpt: (thread?.selftext || r.snippet || '').slice(0, 400),
+        topComments: (thread?.comments || []).slice(0, 6).map(c => ({
+          author: c.author,
+          score: c.score,
+          body: c.body.slice(0, 280)
+        })),
+        threadError: r.threadError
+      };
+    });
+
     const prompt = REDDIT_EVAL_PROMPT
       .replace('{goal}', context.goal)
       .replace('{location}', context.location || 'Not specified')
-      .replace('{results}', JSON.stringify(results.slice(0, 10), null, 2));
+      .replace('{results}', JSON.stringify(compactForPrompt, null, 2));
 
     try {
       const response = await this.callLLM(prompt);
@@ -204,15 +227,22 @@ export class RedditAgent extends BaseToolAgent {
   }
 
   private defaultExtract(results: RedditSearchResult[]): any[] {
-    return results.slice(0, 8).map(r => ({
-      title: r.title,
-      subreddit: r.subreddit,
-      url: r.url,
-      upvotes: r.score,
-      commentCount: r.numComments,
-      topRecommendations: [],
-      keyInsights: [r.selftext?.slice(0, 200) || '']
-    }));
+    return results.slice(0, 8).map(r => {
+      const thread = r.thread;
+      const topComments = thread?.comments?.slice(0, 5) || [];
+      return {
+        title: thread?.title || r.title,
+        subreddit: thread?.subreddit || r.subreddit,
+        url: r.url,
+        upvotes: thread?.score || 0,
+        commentCount: thread?.numComments || 0,
+        topRecommendations: [],
+        keyInsights: [
+          thread?.selftext ? String(thread.selftext).slice(0, 280) : (r.snippet || '').slice(0, 280),
+          ...topComments.map(c => `${c.author}: ${c.body.slice(0, 220)}`)
+        ].filter(Boolean)
+      };
+    });
   }
 
   protected getResultKey(result: RedditSearchResult): string {

@@ -1,10 +1,14 @@
 import { BaseTool } from './BaseTool.js';
 import { config } from '../../config.js';
+import { fetchRedditThread, RedditThread } from '../utils/reddit.js';
 
 interface RedditSearchParams {
   query: string;
   subreddit?: string;
   num?: number;
+  includeComments?: boolean;
+  maxThreads?: number;
+  maxComments?: number;
 }
 
 interface RedditSearchResult {
@@ -13,6 +17,8 @@ interface RedditSearchResult {
   subreddit: string;
   snippet: string;
   source: string;
+  thread?: RedditThread;
+  threadError?: string;
 }
 
 /**
@@ -21,7 +27,7 @@ interface RedditSearchResult {
  */
 export class RedditSearchTool extends BaseTool {
   name = 'reddit_search';
-  description = 'Search Reddit for discussions, recommendations, and local opinions. Great for authentic reviews and hidden gems.';
+  description = 'Search Reddit for discussions and local opinions. Optionally fetches thread JSON to include post + top comments (bounded).';
   parameters = {
     type: 'object' as const,
     properties: {
@@ -36,6 +42,18 @@ export class RedditSearchTool extends BaseTool {
       num: {
         type: 'number',
         description: 'Number of results to return (default: 10)'
+      },
+      includeComments: {
+        type: 'boolean',
+        description: 'If true, fetch each thread JSON and include top comments/authors (default: true)'
+      },
+      maxThreads: {
+        type: 'number',
+        description: 'Max number of threads to fetch content for (default: 3, max: 5)'
+      },
+      maxComments: {
+        type: 'number',
+        description: 'Max number of comments to include per fetched thread (default: 25, max: 60)'
       }
     },
     required: ['query']
@@ -90,6 +108,21 @@ export class RedditSearchTool extends BaseTool {
           };
         });
 
+      const includeComments = params.includeComments !== false;
+      const maxThreads = Math.min(Math.max(params.maxThreads ?? 3, 0), 5);
+      const maxComments = Math.min(Math.max(params.maxComments ?? 25, 1), 60);
+
+      if (includeComments && maxThreads > 0 && results.length > 0) {
+        const targets = results.slice(0, maxThreads);
+        for (const r of targets) {
+          try {
+            r.thread = await fetchRedditThread(r.url, { maxComments });
+          } catch (e) {
+            r.threadError = e instanceof Error ? e.message : 'Unknown error';
+          }
+        }
+      }
+
       return {
         success: true,
         query: params.query,
@@ -97,6 +130,9 @@ export class RedditSearchTool extends BaseTool {
         count: results.length,
         results,
         metadata: {
+          threadsFetched: includeComments,
+          threadsAttempted: includeComments ? Math.min(maxThreads, results.length) : 0,
+          maxComments,
           timestamp: new Date().toISOString()
         }
       };

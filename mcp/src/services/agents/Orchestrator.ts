@@ -140,6 +140,17 @@ export class Orchestrator {
       confidence = evaluation.confidence;
       topRecommendations = evaluation.topRecommendations;
 
+      transparency?.analyzing('Evaluation summary', {
+        sufficient: evaluation.sufficient,
+        confidence: evaluation.confidence,
+        gaps: evaluation.gaps,
+        topRecommendations: (evaluation.topRecommendations || []).slice(0, 5).map((r: any) => ({
+          name: r?.name,
+          sources: r?.sources
+        })),
+        additionalQueries: evaluation.additionalQueries || []
+      });
+
       console.log(`[Orchestrator] Round ${round} evaluation:`, {
         sufficient: evaluation.sufficient,
         confidence: evaluation.confidence,
@@ -147,13 +158,13 @@ export class Orchestrator {
       });
 
       if (evaluation.sufficient) {
-        transparency?.deciding('Data collection complete, synthesizing recommendations...');
+        transparency?.deciding('Data collection complete, synthesizing recommendations...', 'Sufficient coverage across sources; proceeding to final ranking and itinerary generation.');
         break;
       }
 
       // Request additional searches if needed
       if (evaluation.additionalQueries && evaluation.additionalQueries.length > 0) {
-        transparency?.thinking('Gathering additional information...');
+        transparency?.thinking('Gathering additional information...', 60);
         
         const additionalPlans = evaluation.additionalQueries.map((q: any) => ({
           name: q.agent,
@@ -175,14 +186,15 @@ export class Orchestrator {
     }
 
     // Phase 4: Synthesize final response with structured itinerary
-    transparency?.deciding('Creating your personalized recommendations...');
+    transparency?.deciding('Creating your personalized recommendations...', 'Combining sources, weighing consensus, and tailoring to your constraints.');
     
     // Generate both structured itinerary and text summary
     const { response, itinerary } = await this.synthesizeWithItinerary(
       query, 
       location, 
       results, 
-      topRecommendations
+      topRecommendations,
+      transparency
     );
 
     const totalIterations = 
@@ -260,7 +272,9 @@ export class Orchestrator {
 
       const agentContext: AgentContext = {
         ...context,
-        goal: plan.goal
+        goal: plan.goal,
+        // Optional pass-through for agents that want to emit high-level transparency.
+        transparency: transparency as any
       };
 
       transparency?.emitStep({
@@ -274,12 +288,14 @@ export class Orchestrator {
 
       try {
         const result = await agent.execute(agentContext);
+
+        const summary = this.summarizeAgentResult(plan.name, result?.results || []);
         
         transparency?.emitStep({
           type: 'data',
           data: {
             message: `Found ${result.results.length} results from ${this.getAgentDisplayName(plan.name)}`,
-            results: { count: result.results.length, iterations: result.iterations }
+            results: { count: result.results.length, iterations: result.iterations, summary }
           }
         });
 
@@ -311,6 +327,53 @@ export class Orchestrator {
     return results;
   }
 
+  private summarizeAgentResult(agentName: string, results: any[]): any {
+    try {
+      if (agentName === 'places_agent') {
+        return {
+          topPlaces: results.slice(0, 5).map((p: any) => ({
+            name: p?.name,
+            rating: p?.rating,
+            priceLevel: p?.priceLevel
+          }))
+        };
+      }
+
+      if (agentName === 'web_agent') {
+        const domains = results
+          .map((r: any) => r?.source)
+          .filter(Boolean);
+        const uniqueDomains = Array.from(new Set(domains)).slice(0, 8);
+        const withContent = results.filter((r: any) => r?.content?.text).length;
+        return {
+          sources: uniqueDomains,
+          extractedContentCount: withContent,
+          sampleUrls: results.slice(0, 3).map((r: any) => r?.url).filter(Boolean)
+        };
+      }
+
+      if (agentName === 'reddit_agent') {
+        const subreddits = results
+          .map((r: any) => r?.thread?.subreddit || r?.subreddit)
+          .filter(Boolean);
+        const uniqueSubs = Array.from(new Set(subreddits)).slice(0, 8);
+        const threadsFetched = results.filter((r: any) => r?.thread?.comments?.length).length;
+        const sampleComments = results
+          .flatMap((r: any) => (r?.thread?.comments || []).slice(0, 1))
+          .slice(0, 3)
+          .map((c: any) => ({ author: c?.author, score: c?.score, body: c?.body?.slice(0, 200) }));
+        return {
+          subreddits: uniqueSubs,
+          threadsFetched,
+          sampleComments
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return { sample: results.slice(0, 3) };
+  }
+
   private getAgentDisplayName(name: string): string {
     const names: Record<string, string> = {
       'places_agent': 'Google Places',
@@ -334,12 +397,39 @@ export class Orchestrator {
     gaps: string[];
     additionalQueries?: any[];
   }> {
+    const placesForPrompt = (results.places?.results || []).slice(0, 10);
+
+    const webForPrompt = (results.web?.results || []).slice(0, 8).map((r: any) => ({
+      title: r?.title,
+      url: r?.url,
+      snippet: r?.snippet,
+      source: r?.source,
+      date: r?.date,
+      excerpts: r?.content?.excerpts,
+      contentError: r?.contentError
+    }));
+
+    const redditForPrompt = (results.reddit?.results || []).slice(0, 8).map((r: any) => ({
+      title: r?.thread?.title || r?.title,
+      subreddit: r?.thread?.subreddit || r?.subreddit,
+      url: r?.url,
+      upvotes: r?.thread?.score || 0,
+      commentCount: r?.thread?.numComments || 0,
+      postExcerpt: (r?.thread?.selftext || r?.snippet || '').slice(0, 400),
+      topComments: (r?.thread?.comments || []).slice(0, 6).map((c: any) => ({
+        author: c?.author,
+        score: c?.score,
+        body: String(c?.body || '').slice(0, 280)
+      })),
+      threadError: r?.threadError
+    }));
+
     const prompt = ORCHESTRATOR_EVAL_PROMPT
       .replace('{query}', query)
       .replace('{location}', location || 'Not specified')
-      .replace('{placesResults}', JSON.stringify(results.places?.results?.slice(0, 10) || [], null, 2))
-      .replace('{webResults}', JSON.stringify(results.web?.results?.slice(0, 8) || [], null, 2))
-      .replace('{redditResults}', JSON.stringify(results.reddit?.results?.slice(0, 8) || [], null, 2));
+      .replace('{placesResults}', JSON.stringify(placesForPrompt, null, 2))
+      .replace('{webResults}', JSON.stringify(webForPrompt, null, 2))
+      .replace('{redditResults}', JSON.stringify(redditForPrompt, null, 2));
 
     try {
       const response = await this.callLLM(prompt, this.miniModel);
@@ -399,13 +489,39 @@ export class Orchestrator {
     query: string,
     location: string | undefined,
     results: CombinedResults,
-    topRecommendations: any[]
+    topRecommendations: any[],
+    transparency?: TransparencyLayer
   ): Promise<{ response: string; itinerary?: ItineraryData }> {
     // Prepare aggregated data with full place details for itinerary generation
+    const webEvidence = (results.web?.results || []).slice(0, 5).map((r: any) => ({
+      title: r?.title,
+      url: r?.url,
+      source: r?.source,
+      snippet: r?.snippet,
+      date: r?.date,
+      excerpts: r?.content?.excerpts,
+      contentError: r?.contentError
+    }));
+
+    const redditEvidence = (results.reddit?.results || []).slice(0, 5).map((r: any) => ({
+      title: r?.thread?.title || r?.title,
+      url: r?.url,
+      subreddit: r?.thread?.subreddit || r?.subreddit,
+      upvotes: r?.thread?.score || 0,
+      commentCount: r?.thread?.numComments || 0,
+      postExcerpt: (r?.thread?.selftext || r?.snippet || '').slice(0, 500),
+      topComments: (r?.thread?.comments || []).slice(0, 6).map((c: any) => ({
+        author: c?.author,
+        score: c?.score,
+        body: String(c?.body || '').slice(0, 320)
+      })),
+      threadError: r?.threadError
+    }));
+
     const aggregatedData = {
       placesCount: results.places?.results?.length || 0,
-      webArticles: results.web?.results?.slice(0, 5) || [],
-      redditThreads: results.reddit?.results?.slice(0, 5) || [],
+      webArticles: webEvidence,
+      redditThreads: redditEvidence,
       placesHighlights: results.places?.results?.slice(0, 10).map((p: any) => ({
         name: p.name,
         rating: p.rating,
@@ -443,6 +559,14 @@ export class Orchestrator {
       };
 
       console.log('[Orchestrator] Generated itinerary with', itinerary.slots.length, 'slots');
+
+      transparency?.analyzing('Itinerary generated', {
+        slots: itinerary.slots.map(s => ({
+          slotLabel: s.slotLabel,
+          primary: s.primary?.name,
+          alternatives: (s.alternatives || []).map(a => a?.name).filter(Boolean)
+        }))
+      });
     } catch (error) {
       console.error('[Orchestrator] Itinerary generation error:', error);
       // Continue without structured itinerary

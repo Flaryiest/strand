@@ -26,6 +26,13 @@ export interface AgentContext {
   location?: string;
   budget?: string;
   preferences?: string[];
+  // Optional transparency emitter (kept loosely typed to avoid dependency cycles)
+  transparency?: {
+    thinking: (message: string, progress?: number) => Promise<void> | void;
+    analyzing: (message: string, analysis?: any) => Promise<void> | void;
+    deciding: (message: string, reasoning?: string) => Promise<void> | void;
+    emitStep: (event: any) => Promise<void> | void;
+  };
 }
 
 export abstract class BaseToolAgent {
