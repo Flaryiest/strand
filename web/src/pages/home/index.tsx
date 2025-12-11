@@ -17,7 +17,13 @@ export default function IndexPage() {
           <Link className={styles.ctaButton} to="/demo">
             Get Started
           </Link>
-          <img src="/landing/maps.jpg" className={styles.heroImage} />
+          <img
+            src="/landing/maps.jpg"
+            alt="Interactive map showing trip destinations and routes"
+            className={styles.heroImage}
+            width={1024}
+            height={640}
+          />
         </div>
         <div className={styles.featureSection}>
           <h2 className={styles.featureTitle}>Prompt to plan in seconds.</h2>
