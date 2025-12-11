@@ -1,35 +1,18 @@
 import { ReactNode, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/stores/auth';
 
 interface AppProviderProps {
   children: ReactNode;
 }
 
 export default function AppProvider({ children }: AppProviderProps) {
-  const { verify, isInitializing } = useAuth();
+  const verify = useAuthStore((state) => state.verify);
 
-  // Verify authentication on app mount
+  // Verify authentication on app mount (runs in background)
   useEffect(() => {
     verify();
   }, []);
 
-  // Show loading screen only during initial app load
-  if (isInitializing) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          fontSize: '1.2rem',
-          color: '#666'
-        }}
-      >
-        Loading...
-      </div>
-    );
-  }
-
+  // Render children immediately - pages that need auth will handle their own loading state
   return <>{children}</>;
 }
