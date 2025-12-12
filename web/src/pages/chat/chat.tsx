@@ -465,6 +465,7 @@ export default function ChatPage() {
       onClick: () => {
         setActiveView('chat');
         handleNewChat();
+        closeSidebar();
       },
       active: activeView === 'chat' && !conversationUuid
     },
@@ -486,6 +487,7 @@ export default function ChatPage() {
       onClick: () => {
         setActiveView('saved');
         navigate('/chat');
+        closeSidebar();
       },
       active: activeView === 'saved'
     },
@@ -508,6 +510,7 @@ export default function ChatPage() {
       onClick: () => {
         setActiveView('settings');
         navigate('/chat');
+        closeSidebar();
       },
       active: activeView === 'settings'
     }
@@ -527,6 +530,7 @@ export default function ChatPage() {
         onConversationClick={(uuid) => {
           setActiveView('chat');
           navigate(`/chat/${uuid}`);
+          closeSidebar();
         }}
         activeConversationUuid={conversationUuid}
       />

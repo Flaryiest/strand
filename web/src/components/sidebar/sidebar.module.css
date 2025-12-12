@@ -26,6 +26,7 @@
   .sidebar.mobile {
     width: 240px !important;
     transform: translateX(-100%);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .sidebar.mobile.expanded {
