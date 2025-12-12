@@ -65,6 +65,13 @@ export default function ChatPage() {
     }
   };
 
+  const isEventSourceActive = () => {
+    const es = eventSourceRef.current;
+    if (!es) return false;
+    // EventSource.readyState: 0 CONNECTING, 1 OPEN, 2 CLOSED
+    return es.readyState !== EventSource.CLOSED;
+  };
+
   const startEventSource = (runId: string) => {
     stopEventSource();
 
@@ -150,8 +157,8 @@ export default function ChatPage() {
 
         if (isStreamingMsg) {
           // Only (re)attach if we aren't already attached.
-          if (!eventSourceRef.current) {
-            resumeRunStreaming(runId, lastAssistant.id);
+          if (!isEventSourceActive()) {
+            resumeRunStreaming(runId, lastAssistant.id, lastAssistant.content || '');
             startEventSource(runId);
           }
         } else {
@@ -200,7 +207,11 @@ export default function ChatPage() {
                 lastAssistant?.metadata?.status === 'streaming' &&
                 lastAssistant?.metadata?.runId
               ) {
-                resumeRunStreaming(lastAssistant.metadata.runId, lastAssistant.id);
+                resumeRunStreaming(
+                  lastAssistant.metadata.runId,
+                  lastAssistant.id,
+                  lastAssistant.content || ''
+                );
                 startEventSource(lastAssistant.metadata.runId);
               } else {
                 stopEventSource();

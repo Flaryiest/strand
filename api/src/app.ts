@@ -11,11 +11,22 @@ const port = process.env.PORT || 8080;
 
 app.use(
   cors({
-    origin: [
-      'http://localhost:5173',
-      'https://usestrand.space',
-      'https://backend.usestrand.space'
-    ],
+    origin: (origin, callback) => {
+      // Allow non-browser requests (no Origin header)
+      if (!origin) return callback(null, true);
+
+      const allowedExact = new Set([
+        'http://localhost:5173',
+        'https://usestrand.space',
+        'https://www.usestrand.space',
+        'https://backend.usestrand.space'
+      ]);
+
+      if (allowedExact.has(origin)) return callback(null, true);
+      if (origin.endsWith('.usestrand.space')) return callback(null, true);
+
+      return callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true
   })
 );
