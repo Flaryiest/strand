@@ -43,7 +43,9 @@ export default function ChatPage() {
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [animationState, setAnimationState] = useState<'pre' | 'animating' | 'done'>('pre');
+  const [animationState, setAnimationState] = useState<
+    'pre' | 'animating' | 'done'
+  >('pre');
   const [inputValue, setInputValue] = useState('');
   const [showInitialUI, setShowInitialUI] = useState(true);
   const [isPublicView, setIsPublicView] = useState(false);
@@ -55,7 +57,8 @@ export default function ChatPage() {
   const mainContentRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  const runLastIdStorageKey = (runId: string) => `strand:chatRun:${runId}:lastId`;
+  const runLastIdStorageKey = (runId: string) =>
+    `strand:chatRun:${runId}:lastId`;
 
   const stopEventSource = () => {
     if (eventSourceRef.current) {
@@ -71,12 +74,17 @@ export default function ChatPage() {
     return es.readyState !== EventSource.CLOSED;
   };
 
-  const startEventSource = (runId: string, replayFromStart: boolean = false) => {
+  const startEventSource = (
+    runId: string,
+    replayFromStart: boolean = false
+  ) => {
     stopEventSource();
 
     // If replaying from start (e.g., page refresh recovery), ignore sessionStorage
     // and fetch all events from the beginning
-    const afterId = replayFromStart ? '0-0' : (sessionStorage.getItem(runLastIdStorageKey(runId)) || '0-0');
+    const afterId = replayFromStart
+      ? '0-0'
+      : sessionStorage.getItem(runLastIdStorageKey(runId)) || '0-0';
     const url = `${baseUrl}/chat/runs/${runId}/stream?afterId=${encodeURIComponent(afterId)}`;
 
     const es = new EventSource(url, { withCredentials: true });
@@ -153,14 +161,22 @@ export default function ChatPage() {
         setShowInitialUI(false);
 
         // If there's an active run for this conversation, make sure we are attached.
-        const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+        const lastAssistant = [...messages]
+          .reverse()
+          .find((m) => m.role === 'assistant');
         const runId = lastAssistant?.metadata?.runId;
-        const isStreamingMsg = lastAssistant?.metadata?.status === 'streaming' && typeof runId === 'string';
+        const isStreamingMsg =
+          lastAssistant?.metadata?.status === 'streaming' &&
+          typeof runId === 'string';
 
         if (isStreamingMsg) {
           // Only (re)attach if we aren't already attached.
           if (!isEventSourceActive()) {
-            resumeRunStreaming(runId, lastAssistant.id, lastAssistant.content || '');
+            resumeRunStreaming(
+              runId,
+              lastAssistant.id,
+              lastAssistant.content || ''
+            );
             startEventSource(runId, true); // Replay all events from start
           }
         } else {
@@ -331,7 +347,7 @@ export default function ChatPage() {
     raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
         setAnimationState('animating');
-        
+
         // Clean up animation class after it completes
         endTimer = setTimeout(() => {
           setAnimationState('done');
@@ -635,9 +651,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div
-      className={`${styles.pageContainer} ${getAnimationClass()}`}
-    >
+    <div className={`${styles.pageContainer} ${getAnimationClass()}`}>
       <Sidebar
         items={sidebarItems}
         isOpen={sidebarOpen}

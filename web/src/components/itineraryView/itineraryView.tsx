@@ -17,7 +17,6 @@ export default function ItineraryView({
   onViewFullMap,
   onRefine
 }: ItineraryViewProps) {
-
   const handleViewOnMap = useCallback((place: PlaceRecommendation) => {
     // For now, open Google Maps URL if available
     if (place.googleMapsUrl) {

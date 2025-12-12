@@ -72,8 +72,15 @@ interface ChatState {
   setConversationUuid: (uuid: string) => void;
   setConversations: (conversations: GroupedConversations) => void;
   setLoadingConversations: (loading: boolean) => void;
-  setActiveRun: (runId: string | null, assistantMessageId?: number | null) => void;
-  resumeRunStreaming: (runId: string, assistantMessageId: number, initialResponse?: string) => void;
+  setActiveRun: (
+    runId: string | null,
+    assistantMessageId?: number | null
+  ) => void;
+  resumeRunStreaming: (
+    runId: string,
+    assistantMessageId: number,
+    initialResponse?: string
+  ) => void;
   addUserMessage: (content: string) => void;
   addStreamEvent: (event: StreamEvent) => void;
   completeStreaming: () => void;
@@ -124,7 +131,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingItinerary: null,
       error: null,
       activeRunId: runId,
-      activeAssistantMessageId: assistantMessageId,
+      activeAssistantMessageId: assistantMessageId
     }),
 
   setMessages: (messages) => set({ messages }),
