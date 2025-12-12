@@ -64,7 +64,6 @@ interface ChatState {
   streamingItinerary: ItineraryRecommendation | null;
   activeRunId: string | null;
   activeAssistantMessageId: number | null;
-  lastEventSeq: number;
   error: string | null;
   conversations: GroupedConversations;
   isLoadingConversations: boolean;
@@ -74,7 +73,6 @@ interface ChatState {
   setConversations: (conversations: GroupedConversations) => void;
   setLoadingConversations: (loading: boolean) => void;
   setActiveRun: (runId: string | null, assistantMessageId?: number | null) => void;
-  setLastEventSeq: (seq: number) => void;
   resumeRunStreaming: (runId: string, assistantMessageId: number) => void;
   addUserMessage: (content: string) => void;
   addStreamEvent: (event: StreamEvent) => void;
@@ -102,7 +100,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streamingItinerary: null,
   activeRunId: null,
   activeAssistantMessageId: null,
-  lastEventSeq: 0,
   error: null,
   conversations: emptyGroupedConversations,
   isLoadingConversations: false,
@@ -119,8 +116,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setActiveRun: (runId, assistantMessageId = null) =>
     set({ activeRunId: runId, activeAssistantMessageId: assistantMessageId }),
 
-  setLastEventSeq: (seq) => set({ lastEventSeq: seq }),
-
   resumeRunStreaming: (runId, assistantMessageId) =>
     set({
       isStreaming: true,
@@ -130,7 +125,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       error: null,
       activeRunId: runId,
       activeAssistantMessageId: assistantMessageId,
-      lastEventSeq: 0
     }),
 
   setMessages: (messages) => set({ messages }),
@@ -148,7 +142,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingEvents: [],
       accumulatedResponse: '',
       streamingItinerary: null,
-      lastEventSeq: 0,
       error: null
     }));
   },
@@ -213,8 +206,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         accumulatedResponse: '',
         streamingItinerary: null,
         activeRunId: null,
-        activeAssistantMessageId: null,
-        lastEventSeq: 0
+        activeAssistantMessageId: null
       };
     });
   },
@@ -232,7 +224,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingItinerary: null,
       activeRunId: null,
       activeAssistantMessageId: null,
-      lastEventSeq: 0,
       error: null
     })
 }));

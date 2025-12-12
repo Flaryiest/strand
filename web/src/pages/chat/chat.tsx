@@ -32,7 +32,6 @@ export default function ChatPage() {
     setConversations,
     setLoadingConversations,
     setActiveRun,
-    setLastEventSeq,
     resumeRunStreaming,
     setMessages,
     addUserMessage,
@@ -57,7 +56,7 @@ export default function ChatPage() {
   const mainContentRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  const runSeqStorageKey = (runId: string) => `strand:chatRun:${runId}:lastSeq`;
+  const runLastIdStorageKey = (runId: string) => `strand:chatRun:${runId}:lastId`;
 
   const stopEventSource = () => {
     if (eventSourceRef.current) {
@@ -69,9 +68,9 @@ export default function ChatPage() {
   const startEventSource = (runId: string) => {
     stopEventSource();
 
-    const saved = sessionStorage.getItem(runSeqStorageKey(runId));
-    const afterSeq = saved ? Number.parseInt(saved, 10) : 0;
-    const url = `${baseUrl}/chat/runs/${runId}/stream?afterSeq=${Number.isFinite(afterSeq) ? afterSeq : 0}`;
+    const saved = sessionStorage.getItem(runLastIdStorageKey(runId));
+    const afterId = saved || '0-0';
+    const url = `${baseUrl}/chat/runs/${runId}/stream?afterId=${encodeURIComponent(afterId)}`;
 
     const es = new EventSource(url, { withCredentials: true });
     eventSourceRef.current = es;
@@ -79,14 +78,12 @@ export default function ChatPage() {
     es.onmessage = (evt) => {
       try {
         const eventData = JSON.parse(evt.data);
-        const seq = evt.lastEventId ? Number.parseInt(evt.lastEventId, 10) : NaN;
-        if (Number.isFinite(seq)) {
-          setLastEventSeq(seq);
-          sessionStorage.setItem(runSeqStorageKey(runId), String(seq));
+        if (evt.lastEventId) {
+          sessionStorage.setItem(runLastIdStorageKey(runId), evt.lastEventId);
         }
 
         if (eventData.type === 'done') {
-          sessionStorage.removeItem(runSeqStorageKey(runId));
+          sessionStorage.removeItem(runLastIdStorageKey(runId));
           completeStreaming();
           refreshConversations();
           stopEventSource();

@@ -34,7 +34,6 @@ model Conversation {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   messages      Message[]
-  chatRuns      ChatRun[]
 
   @@index([userId])
   @@index([uuid])
@@ -54,42 +53,6 @@ model Message {
   createdAt      DateTime     @default(now())
 
   @@index([conversationId])
-}
-
-model ChatRun {
-  id                String    @id @default(uuid())
-  userId            Int
-  conversationId    Int
-  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  status            String    @default("queued")
-  userMessageId     Int
-  assistantMessageId Int
-  location          String?
-  lastSeq           Int       @default(0)
-  error             String?
-  metadata          Json?
-  startedAt         DateTime?
-  finishedAt        DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  events            ChatRunEvent[]
-
-  @@index([userId])
-  @@index([conversationId])
-  @@index([status])
-}
-
-model ChatRunEvent {
-  id        Int      @id @default(autoincrement())
-  runId     String
-  run       ChatRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
-  seq       Int
-  type      String
-  data      Json
-  createdAt DateTime @default(now())
-
-  @@unique([runId, seq])
-  @@index([runId, seq])
 }
 
 enum Plan {

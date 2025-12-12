@@ -1,90 +1,37 @@
-import type { Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { appendRunEvent, patchRunMeta } from './redis.js';
 
 const prisma = new PrismaClient();
 
 const MCP_URL = process.env.MCP_URL || 'https://mcp.usestrand.space';
 
-type Subscriber = {
-  res: Response;
-  keepAliveId: NodeJS.Timeout;
-};
+export async function startChatRun(runId: string, params: {
+  userId: number;
+  conversationId: number;
+  assistantMessageId: number;
+  location?: string | null;
+}) {
+  const { userId, conversationId, assistantMessageId, location } = params;
 
-const subscribersByRunId = new Map<string, Set<Subscriber>>();
+  await patchRunMeta(runId, { status: 'running' });
 
-function writeSse(res: Response, seq: number, payload: unknown) {
-  res.write(`id: ${seq}\n`);
-  res.write(`data: ${JSON.stringify(payload)}\n\n`);
-}
-
-function broadcast(runId: string, seq: number, payload: unknown) {
-  const subscribers = subscribersByRunId.get(runId);
-  if (!subscribers || subscribers.size === 0) return;
-
-  for (const sub of subscribers) {
-    try {
-      writeSse(sub.res, seq, payload);
-    } catch {
-      // Ignore write errors; cleanup will happen on close.
-    }
-  }
-}
-
-export function addRunSubscriber(runId: string, res: Response) {
-  const keepAliveId = setInterval(() => {
-    try {
-      res.write(': keep-alive\n\n');
-    } catch {
-      // ignore
-    }
-  }, 20000);
-
-  const subscriber: Subscriber = { res, keepAliveId };
-
-  const set = subscribersByRunId.get(runId) ?? new Set<Subscriber>();
-  set.add(subscriber);
-  subscribersByRunId.set(runId, set);
-
-  const remove = () => {
-    clearInterval(keepAliveId);
-    const current = subscribersByRunId.get(runId);
-    if (!current) return;
-    current.delete(subscriber);
-    if (current.size === 0) subscribersByRunId.delete(runId);
-  };
-
-  return remove;
-}
-
-export async function startChatRun(runId: string) {
-  const run = await prisma.chatRun.findUnique({
-    where: { id: runId },
+  const conversation = await prisma.conversation.findFirst({
+    where: {
+      id: conversationId,
+      userId
+    },
     include: {
-      conversation: {
-        include: {
-          messages: {
-            orderBy: { createdAt: 'asc' }
-          }
-        }
+      messages: {
+        orderBy: { createdAt: 'asc' }
       }
     }
   });
 
-  if (!run) {
-    throw new Error(`ChatRun not found: ${runId}`);
+  if (!conversation) {
+    throw new Error('Conversation not found for run');
   }
 
-  await prisma.chatRun.update({
-    where: { id: runId },
-    data: {
-      status: 'running',
-      startedAt: new Date(),
-      error: null
-    }
-  });
-
-  // Build chat history, excluding the assistant placeholder message (empty content).
-  const history = run.conversation.messages
+  const history = conversation.messages
     .filter((msg) => {
       if (msg.role === 'user') return true;
       if (msg.role === 'assistant') return (msg.content || '').trim().length > 0;
@@ -96,10 +43,10 @@ export async function startChatRun(runId: string) {
     }));
 
   const mcpPayload = {
-    userId: run.userId,
-    conversationId: run.conversationId,
+    userId,
+    conversationId,
     messages: history,
-    location: run.location || null
+    location: location || null
   };
 
   const startTime = Date.now();
@@ -108,34 +55,14 @@ export async function startChatRun(runId: string) {
   let tokenCount = 0;
   let toolCallCount = 0;
   let itineraryData: any = null;
+  let lastDbUpdateAt = 0;
 
-  let seq = run.lastSeq;
-  let pending: Array<{ seq: number; type: string; data: any }> = [];
-  let lastFlushAt = 0;
-
-  const flush = async () => {
-    if (pending.length === 0) return;
-
-    const toFlush = pending;
-    pending = [];
-
-    await prisma.chatRunEvent.createMany({
-      data: toFlush.map((e) => ({
-        runId,
-        seq: e.seq,
-        type: e.type,
-        data: e.data
-      }))
-    });
-
-    await prisma.chatRun.update({
-      where: { id: runId },
-      data: { lastSeq: seq }
-    });
-
-    // Update assistant placeholder content occasionally so history has partial text.
+  const maybeUpdateDb = async () => {
+    const now = Date.now();
+    if (now - lastDbUpdateAt < 750) return;
+    lastDbUpdateAt = now;
     await prisma.message.update({
-      where: { id: run.assistantMessageId },
+      where: { id: assistantMessageId },
       data: {
         content: fullResponse,
         metadata: {
@@ -144,12 +71,6 @@ export async function startChatRun(runId: string) {
         }
       }
     });
-
-    for (const e of toFlush) {
-      broadcast(runId, e.seq, e.data);
-    }
-
-    lastFlushAt = Date.now();
   };
 
   try {
@@ -177,7 +98,6 @@ export async function startChatRun(runId: string) {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-
       if (!value) continue;
 
       buffer += decoder.decode(value, { stream: true });
@@ -191,12 +111,12 @@ export async function startChatRun(runId: string) {
           const eventData = JSON.parse(line.substring(6));
           eventLog.push(eventData);
 
-          seq += 1;
-          pending.push({ seq, type: String(eventData.type || 'unknown'), data: eventData });
+          await appendRunEvent(runId, eventData);
 
           if (eventData.type === 'token') {
             fullResponse += eventData.data?.message || '';
             tokenCount++;
+            await maybeUpdateDb();
           }
           if (eventData.type === 'action') {
             toolCallCount++;
@@ -204,24 +124,16 @@ export async function startChatRun(runId: string) {
           if (eventData.type === 'done' && eventData.data?.itinerary) {
             itineraryData = eventData.data.itinerary;
           }
-
-          const now = Date.now();
-          if (pending.length >= 25 || now - lastFlushAt >= 300) {
-            await flush();
-          }
         } catch {
-          // Ignore non-JSON or partial lines.
+          // ignore
         }
       }
     }
 
-    await flush();
-
     const processingTime = Date.now() - startTime;
 
-    // Finalize assistant message
     await prisma.message.update({
-      where: { id: run.assistantMessageId },
+      where: { id: assistantMessageId },
       data: {
         content: fullResponse,
         eventLog,
@@ -238,38 +150,31 @@ export async function startChatRun(runId: string) {
     });
 
     // Update conversation title if it's the first message
-    if (!run.conversation.title && run.conversation.messages.filter((m) => m.role === 'user').length === 1) {
+    const userCount = conversation.messages.filter((m) => m.role === 'user').length;
+    if (!conversation.title && userCount === 1) {
+      const firstUser = conversation.messages.find((m) => m.role === 'user');
       await prisma.conversation.update({
-        where: { id: run.conversationId },
-        data: { title: (run.conversation.messages.findLast((m) => m.role === 'user')?.content || '').substring(0, 50) }
+        where: { id: conversationId },
+        data: { title: (firstUser?.content || '').substring(0, 50) }
       });
     }
 
-    await prisma.chatRun.update({
-      where: { id: runId },
-      data: { status: 'done', finishedAt: new Date() }
-    });
+    await patchRunMeta(runId, { status: 'done' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Run failed';
-
-    // Persist an error event so clients see it on replay.
-    seq += 1;
     const errorEvent = {
       type: 'error',
       data: { message: 'Failed to connect to AI service' }
     };
 
-    await prisma.chatRunEvent.create({
-      data: {
-        runId,
-        seq,
-        type: 'error',
-        data: errorEvent
-      }
-    });
+    try {
+      await appendRunEvent(runId, errorEvent);
+    } catch {
+      // ignore
+    }
 
     await prisma.message.update({
-      where: { id: run.assistantMessageId },
+      where: { id: assistantMessageId },
       data: {
         metadata: {
           status: 'error',
@@ -279,25 +184,6 @@ export async function startChatRun(runId: string) {
       }
     });
 
-    await prisma.chatRun.update({
-      where: { id: runId },
-      data: { status: 'error', error: message, lastSeq: seq, finishedAt: new Date() }
-    });
-
-    broadcast(runId, seq, errorEvent);
-  } finally {
-    // Best-effort: close subscribers once run is finished.
-    const subs = subscribersByRunId.get(runId);
-    if (subs) {
-      for (const sub of subs) {
-        try {
-          clearInterval(sub.keepAliveId);
-          sub.res.end();
-        } catch {
-          // ignore
-        }
-      }
-      subscribersByRunId.delete(runId);
-    }
+    await patchRunMeta(runId, { status: 'error' });
   }
 }

@@ -1,7 +1,9 @@
 import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { requireAuth } from '../middleware/auth.middle.js';
-import { addRunSubscriber, startChatRun } from '../services/chatRunExecutor.js';
+import { startChatRun } from '../services/chatRunExecutor.js';
+import { createRedis, getRunMeta, setRunMeta } from '../services/redis.js';
 
 const chat: Router = express.Router();
 const prisma = new PrismaClient();
@@ -333,36 +335,38 @@ chat.post('/send', async (req: Request, res: Response): Promise<any> => {
       }
     });
 
-    const run = await prisma.chatRun.create({
-      data: {
-        userId,
-        conversationId: conversation.id,
-        status: 'queued',
-        userMessageId: userMessage.id,
-        assistantMessageId: assistantMessage.id,
-        location: location || null,
-        metadata: {}
-      }
-    });
+    const runId = randomUUID();
 
     await prisma.message.update({
       where: { id: assistantMessage.id },
       data: {
         metadata: {
           status: 'streaming',
-          runId: run.id
+          runId
         }
       }
     });
 
+    await setRunMeta(runId, {
+      userId,
+      conversationId: conversation.id,
+      assistantMessageId: assistantMessage.id,
+      status: 'queued'
+    });
+
     res.json({
       success: true,
-      runId: run.id,
+      runId,
       assistantMessageId: assistantMessage.id
     });
 
     // Run in background (do not await).
-    startChatRun(run.id).catch((err) => {
+    startChatRun(runId, {
+      userId,
+      conversationId: conversation.id,
+      assistantMessageId: assistantMessage.id,
+      location: location || null
+    }).catch((err) => {
       console.error('[ChatRun] startChatRun failed:', err);
     });
   } catch (error) {
@@ -384,14 +388,8 @@ chat.get('/runs/:runId/stream', async (req: Request, res: Response): Promise<any
       return res.status(401).send('Unauthorized');
     }
 
-    const run = await prisma.chatRun.findFirst({
-      where: {
-        id: runId,
-        userId
-      }
-    });
-
-    if (!run) {
+    const meta = await getRunMeta(runId);
+    if (!meta || meta.userId !== userId) {
       return res.status(404).json({
         success: false,
         error: 'Run not found'
@@ -403,49 +401,122 @@ chat.get('/runs/:runId/stream', async (req: Request, res: Response): Promise<any
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // Determine replay cursor (query param preferred for first connect after refresh)
-    const afterSeqRaw = typeof req.query.afterSeq === 'string' ? req.query.afterSeq : undefined;
-    const afterSeqFromQuery = afterSeqRaw ? Number.parseInt(afterSeqRaw, 10) : NaN;
+    // Determine replay cursor (Redis Stream ID)
+    const afterIdRaw = typeof req.query.afterId === 'string' ? req.query.afterId : undefined;
+    const lastEventIdRaw = req.header('last-event-id') || undefined;
+    let lastId = afterIdRaw || lastEventIdRaw || '0-0';
 
-    const lastEventIdRaw = req.header('last-event-id');
-    const afterSeqFromHeader = lastEventIdRaw ? Number.parseInt(lastEventIdRaw, 10) : NaN;
+    const redis = createRedis();
 
-    const afterSeq = Number.isFinite(afterSeqFromQuery)
-      ? afterSeqFromQuery
-      : Number.isFinite(afterSeqFromHeader)
-        ? afterSeqFromHeader
-        : 0;
-
-    // Replay stored events
-    const priorEvents = await prisma.chatRunEvent.findMany({
-      where: {
-        runId,
-        seq: {
-          gt: afterSeq
-        }
-      },
-      orderBy: {
-        seq: 'asc'
+    let closed = false;
+    req.on('close', () => {
+      closed = true;
+      try {
+        redis.disconnect();
+      } catch {
+        // ignore
       }
     });
 
-    for (const e of priorEvents) {
-      res.write(`id: ${e.seq}\n`);
-      res.write(`data: ${JSON.stringify(e.data)}\n\n`);
+    // Keep-alive comments
+    const keepAliveId = setInterval(() => {
+      try {
+        res.write(': keep-alive\n\n');
+      } catch {
+        // ignore
+      }
+    }, 20000);
+
+    const streamKey = `chatrun:stream:${runId}`;
+
+    const sendEntry = (entryId: string, json: string) => {
+      res.write(`id: ${entryId}\n`);
+      res.write(`data: ${json}\n\n`);
+    };
+
+    const pump = async (blockMs: number | null) => {
+      const args: any[] = [];
+      if (blockMs !== null) {
+        args.push('BLOCK', blockMs);
+      }
+      args.push('COUNT', 200, 'STREAMS', streamKey, lastId);
+      const result = await (redis as any).xread(...args);
+      return result as any;
+    };
+
+    // Initial replay (non-blocking)
+    const initial = await pump(null);
+    if (initial) {
+      for (const [, entries] of initial) {
+        for (const [entryId, fields] of entries) {
+          const fieldObj = Array.isArray(fields)
+            ? Object.fromEntries(fields.reduce((acc: any[], v: any, i: number) => {
+                if (i % 2 === 0) acc.push([v, fields[i + 1]]);
+                return acc;
+              }, []))
+            : fields;
+
+          const json = fieldObj.json;
+          if (typeof json === 'string') {
+            sendEntry(entryId, json);
+            lastId = entryId;
+
+            try {
+              const parsed = JSON.parse(json);
+              if (parsed?.type === 'done' || parsed?.type === 'error') {
+                clearInterval(keepAliveId);
+                res.end();
+                return;
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+      }
     }
 
-    // If the run is already finished, end after replay.
-    if (run.status === 'done' || run.status === 'error' || run.status === 'canceled') {
-      res.end();
-      return;
+    // Live loop
+    while (!closed) {
+      const metaNow = await getRunMeta(runId);
+      if (!metaNow || metaNow.userId !== userId) break;
+      if (metaNow.status === 'done' || metaNow.status === 'error') {
+        break;
+      }
+
+      const next = await pump(15000);
+      if (!next) continue;
+
+      for (const [, entries] of next) {
+        for (const [entryId, fields] of entries) {
+          const fieldObj = Array.isArray(fields)
+            ? Object.fromEntries(fields.reduce((acc: any[], v: any, i: number) => {
+                if (i % 2 === 0) acc.push([v, fields[i + 1]]);
+                return acc;
+              }, []))
+            : fields;
+
+          const json = fieldObj.json;
+          if (typeof json === 'string') {
+            sendEntry(entryId, json);
+            lastId = entryId;
+
+            try {
+              const parsed = JSON.parse(json);
+              if (parsed?.type === 'done' || parsed?.type === 'error') {
+                closed = true;
+                break;
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+      }
     }
 
-    // Subscribe for live events
-    const remove = addRunSubscriber(runId, res);
-
-    req.on('close', () => {
-      remove();
-    });
+    clearInterval(keepAliveId);
+    res.end();
   } catch (error) {
     console.error('Run stream error:', error);
     if (!res.headersSent) {
