@@ -133,6 +133,8 @@ export default function ChatPage() {
         if (conversationUuid) {
           reset();
         }
+        stopEventSource();
+        setActiveRun(null);
         setShowInitialUI(true);
         return;
       }
@@ -140,6 +142,23 @@ export default function ChatPage() {
       // Check if we already have this conversation loaded
       if (conversationUuid === chatId && messages.length > 0) {
         setShowInitialUI(false);
+
+        // If there's an active run for this conversation, make sure we are attached.
+        const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+        const runId = lastAssistant?.metadata?.runId;
+        const isStreamingMsg = lastAssistant?.metadata?.status === 'streaming' && typeof runId === 'string';
+
+        if (isStreamingMsg) {
+          // Only (re)attach if we aren't already attached.
+          if (!eventSourceRef.current) {
+            resumeRunStreaming(runId, lastAssistant.id);
+            startEventSource(runId);
+          }
+        } else {
+          stopEventSource();
+          setActiveRun(null);
+        }
+
         return;
       }
 
