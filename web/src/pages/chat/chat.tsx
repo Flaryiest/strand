@@ -22,7 +22,6 @@ export default function ChatPage() {
     messages,
     isStreaming,
     streamingEvents,
-    accumulatedResponse,
     streamingItinerary,
     error,
     conversations,
@@ -90,6 +89,8 @@ export default function ChatPage() {
         }
 
         if (eventData.type === 'done') {
+          // Process the done event first to capture the itinerary
+          addStreamEvent(eventData);
           sessionStorage.removeItem(runLastIdStorageKey(runId));
           completeStreaming();
           refreshConversations();
@@ -686,10 +687,10 @@ export default function ChatPage() {
                       />
                     </div>
                   ) : (
-                    // Fallback to text-only response
+                    // Fallback: show reasoning events only, no text content
                     <ReasoningStream
                       events={msg.events || []}
-                      accumulatedResponse={msg.content}
+                      accumulatedResponse=""
                     />
                   )}
                 </div>
@@ -700,7 +701,7 @@ export default function ChatPage() {
                 <div className={styles.streamingContainer}>
                   <ReasoningStream
                     events={streamingEvents}
-                    accumulatedResponse={accumulatedResponse}
+                    accumulatedResponse=""
                   />
                   {/* Show itinerary as it becomes available */}
                   {streamingItinerary && (
