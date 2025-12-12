@@ -9,6 +9,9 @@ import maps from './routes/maps.routes.js';
 const app = express();
 const port = process.env.PORT || 8080;
 
+// Streaming endpoints (SSE) must not be cached/revalidated.
+app.set('etag', false);
+
 app.use(
   cors({
     origin: (origin, callback) => {

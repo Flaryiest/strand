@@ -410,9 +410,19 @@ chat.get('/runs/:runId/stream', async (req: Request, res: Response): Promise<any
     }
 
     // SSE headers
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    // Prevent any intermediary caching/revalidation of the stream endpoint.
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    // Ensure caches don't serve a response with the wrong CORS headers.
+    res.setHeader('Vary', 'Origin');
+    // Disable proxy buffering (nginx) to keep SSE flowing.
+    res.setHeader('X-Accel-Buffering', 'no');
     res.setHeader('Connection', 'keep-alive');
+
+    // Flush headers immediately and send an initial comment.
+    res.write(': stream-open\n\n');
 
     // Determine replay cursor (Redis Stream ID)
     const afterIdRaw = typeof req.query.afterId === 'string' ? req.query.afterId : undefined;
