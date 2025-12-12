@@ -11,6 +11,12 @@
   top: 0;
   left: 0;
   z-index: 1000;
+  /* GPU acceleration for smooth transitions */
+  will-change: width, transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  contain: layout style;
 }
 
 .sidebar.expanded {

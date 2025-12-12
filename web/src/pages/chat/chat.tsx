@@ -43,7 +43,7 @@ export default function ChatPage() {
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [isEntering, setIsEntering] = useState(true);
+  const [animationState, setAnimationState] = useState<'pre' | 'animating' | 'done'>('pre');
   const [inputValue, setInputValue] = useState('');
   const [showInitialUI, setShowInitialUI] = useState(true);
   const [isPublicView, setIsPublicView] = useState(false);
@@ -291,9 +291,13 @@ export default function ChatPage() {
 
   useEffect(() => {
     // Auto-detect location only if user is authenticated, has no location saved in their profile,
-    // and no location is set in the store
+    // and no location is set in the store.
+    // Defer this to avoid interfering with entrance animation
     if (isAuthenticated && !user?.location && !location) {
-      detectLocation();
+      const timer = setTimeout(() => {
+        detectLocation();
+      }, 800); // Delay until after animation completes
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, user?.location, location, detectLocation]);
 
@@ -312,19 +316,35 @@ export default function ChatPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Trigger entrance animation on mount
+  // Trigger entrance animation after auth loading completes
   useEffect(() => {
-    let isMounted = true;
-    const timer = setTimeout(() => {
-      if (isMounted) {
-        setIsEntering(false);
-      }
-    }, 1000);
+    if (isLoading) return;
+
+    // Double requestAnimationFrame guarantees the browser has painted
+    // the initial "pre" state before we start animating.
+    // RAF 1: Schedules for next frame (browser will paint "pre" state)
+    // RAF 2: Runs after that paint, safe to start animation
+    let raf1: number;
+    let raf2: number;
+    let endTimer: ReturnType<typeof setTimeout>;
+
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        setAnimationState('animating');
+        
+        // Clean up animation class after it completes
+        endTimer = setTimeout(() => {
+          setAnimationState('done');
+        }, 650);
+      });
+    });
+
     return () => {
-      isMounted = false;
-      clearTimeout(timer);
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      clearTimeout(endTimer);
     };
-  }, []);
+  }, [isLoading]);
 
   // Disable browser scroll restoration
   useEffect(() => {
@@ -602,9 +622,21 @@ export default function ChatPage() {
     }
   ];
 
+  // Determine animation class based on state
+  const getAnimationClass = () => {
+    switch (animationState) {
+      case 'pre':
+        return styles.preAnimation;
+      case 'animating':
+        return styles.enterAnimation;
+      default:
+        return '';
+    }
+  };
+
   return (
     <div
-      className={`${styles.pageContainer} ${isEntering ? styles.enterAnimation : ''}`}
+      className={`${styles.pageContainer} ${getAnimationClass()}`}
     >
       <Sidebar
         items={sidebarItems}
