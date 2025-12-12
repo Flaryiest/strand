@@ -151,6 +151,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 550;
+  font-size: 0.8rem;
+  color: rgb(202, 202, 202);
+  font-family: "Inter";
 }
 
 .minimized .label {

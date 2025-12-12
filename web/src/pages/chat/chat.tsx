@@ -53,6 +53,28 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
 
+  const refreshConversations = async () => {
+    if (!isAuthenticated) return;
+
+    setLoadingConversations(true);
+    try {
+      const response = await fetch(`${baseUrl}/chat/list`, {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setConversations(data.conversations);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading conversations:', err);
+    } finally {
+      setLoadingConversations(false);
+    }
+  };
+
   // Load conversation from URL if chatId is present
   useEffect(() => {
     const loadConversation = async () => {
@@ -148,29 +170,7 @@ export default function ChatPage() {
 
   // Load conversation list for sidebar
   useEffect(() => {
-    const loadConversations = async () => {
-      if (!isAuthenticated) return;
-
-      setLoadingConversations(true);
-      try {
-        const response = await fetch(`${baseUrl}/chat/list`, {
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            setConversations(data.conversations);
-          }
-        }
-      } catch (err) {
-        console.error('Error loading conversations:', err);
-      } finally {
-        setLoadingConversations(false);
-      }
-    };
-
-    loadConversations();
+    refreshConversations();
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -322,6 +322,9 @@ export default function ChatPage() {
 
       const data = await response.json();
       console.log('Conversation created:', data);
+      // Ensure the sidebar updates immediately (the initial sidebar fetch may have
+      // happened before this conversation existed).
+      refreshConversations();
       return { id: data.conversation.id, uuid: data.conversation.uuid };
     } catch (err) {
       console.error('Create conversation error:', err);
@@ -399,6 +402,9 @@ export default function ChatPage() {
 
               if (eventData.type === 'done') {
                 completeStreaming();
+                // After the first prompt, the backend may update the conversation title
+                // (or it may only become visible to /chat/list after persistence completes).
+                refreshConversations();
               } else {
                 addStreamEvent(eventData);
               }
