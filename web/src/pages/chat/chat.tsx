@@ -71,11 +71,12 @@ export default function ChatPage() {
     return es.readyState !== EventSource.CLOSED;
   };
 
-  const startEventSource = (runId: string) => {
+  const startEventSource = (runId: string, replayFromStart: boolean = false) => {
     stopEventSource();
 
-    const saved = sessionStorage.getItem(runLastIdStorageKey(runId));
-    const afterId = saved || '0-0';
+    // If replaying from start (e.g., page refresh recovery), ignore sessionStorage
+    // and fetch all events from the beginning
+    const afterId = replayFromStart ? '0-0' : (sessionStorage.getItem(runLastIdStorageKey(runId)) || '0-0');
     const url = `${baseUrl}/chat/runs/${runId}/stream?afterId=${encodeURIComponent(afterId)}`;
 
     const es = new EventSource(url, { withCredentials: true });
@@ -160,7 +161,7 @@ export default function ChatPage() {
           // Only (re)attach if we aren't already attached.
           if (!isEventSourceActive()) {
             resumeRunStreaming(runId, lastAssistant.id, lastAssistant.content || '');
-            startEventSource(runId);
+            startEventSource(runId, true); // Replay all events from start
           }
         } else {
           stopEventSource();
@@ -213,7 +214,7 @@ export default function ChatPage() {
                   lastAssistant.id,
                   lastAssistant.content || ''
                 );
-                startEventSource(lastAssistant.metadata.runId);
+                startEventSource(lastAssistant.metadata.runId, true); // Replay all events from start on refresh
               } else {
                 stopEventSource();
                 setActiveRun(null);
