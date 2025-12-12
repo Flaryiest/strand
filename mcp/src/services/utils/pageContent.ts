@@ -21,6 +21,18 @@ function normalizeWhitespace(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+function stripStylesheets(html: string): string {
+  // jsdom will attempt to parse CSS inside <style> blocks and can throw on some modern sites.
+  // We don't need CSS for readability extraction, so remove stylesheet sources proactively.
+  return html
+    // Remove <style> blocks.
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    // Remove <link rel="stylesheet" ...> and similar.
+    .replace(/<link\b[^>]*rel=["']?stylesheet["']?[^>]*>/gi, ' ')
+    // Remove preload/prefetch CSS links.
+    .replace(/<link\b[^>]*as=["']?style["']?[^>]*>/gi, ' ');
+}
+
 function splitSentences(text: string): string[] {
   const cleaned = text
     .replace(/\s+/g, ' ')
@@ -85,7 +97,8 @@ export function extractReadableContentFromHtml(
   const fetchedAt = new Date().toISOString();
 
   try {
-    const dom = new JSDOM(html, { url });
+    const cleanedHtml = stripStylesheets(html);
+    const dom = new JSDOM(cleanedHtml, { url });
     const reader = new Readability(dom.window.document);
     const parsed = reader.parse();
 
