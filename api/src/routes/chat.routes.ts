@@ -10,6 +10,10 @@ const prisma = new PrismaClient();
 
 const MCP_URL = process.env.MCP_URL || 'https://mcp.usestrand.space';
 
+function chatDebugEnabled() {
+  return process.env.CHAT_DEBUG === '1';
+}
+
 // Public endpoint - Get conversation by UUID (no auth required)
 chat.get('/public/:uuid', async (req: Request, res: Response): Promise<any> => {
   try {
@@ -354,6 +358,15 @@ chat.post('/send', async (req: Request, res: Response): Promise<any> => {
       status: 'queued'
     });
 
+    if (chatDebugEnabled()) {
+      console.log('[ChatRun] created', {
+        runId,
+        userId,
+        conversationId: conversation.id,
+        assistantMessageId: assistantMessage.id
+      });
+    }
+
     res.json({
       success: true,
       runId,
@@ -406,6 +419,16 @@ chat.get('/runs/:runId/stream', async (req: Request, res: Response): Promise<any
     const lastEventIdRaw = req.header('last-event-id') || undefined;
     let lastId = afterIdRaw || lastEventIdRaw || '0-0';
 
+    if (chatDebugEnabled()) {
+      console.log('[ChatRun] stream open', {
+        runId,
+        userId,
+        afterId: afterIdRaw,
+        lastEventId: lastEventIdRaw,
+        startFrom: lastId
+      });
+    }
+
     const redis = createRedis();
 
     let closed = false;
@@ -447,6 +470,10 @@ chat.get('/runs/:runId/stream', async (req: Request, res: Response): Promise<any
     // Initial replay (non-blocking)
     const initial = await pump(null);
     if (initial) {
+      if (chatDebugEnabled()) {
+        const total = initial.reduce((sum: number, s: any) => sum + (Array.isArray(s?.[1]) ? s[1].length : 0), 0);
+        console.log('[ChatRun] stream replay', { runId, entries: total });
+      }
       for (const [, entries] of initial) {
         for (const [entryId, fields] of entries) {
           const fieldObj = Array.isArray(fields)
@@ -487,6 +514,11 @@ chat.get('/runs/:runId/stream', async (req: Request, res: Response): Promise<any
       const next = await pump(15000);
       if (!next) continue;
 
+      if (chatDebugEnabled()) {
+        const total = next.reduce((sum: number, s: any) => sum + (Array.isArray(s?.[1]) ? s[1].length : 0), 0);
+        if (total > 0) console.log('[ChatRun] stream batch', { runId, entries: total });
+      }
+
       for (const [, entries] of next) {
         for (const [entryId, fields] of entries) {
           const fieldObj = Array.isArray(fields)
@@ -517,6 +549,10 @@ chat.get('/runs/:runId/stream', async (req: Request, res: Response): Promise<any
 
     clearInterval(keepAliveId);
     res.end();
+
+    if (chatDebugEnabled()) {
+      console.log('[ChatRun] stream closed', { runId, userId });
+    }
   } catch (error) {
     console.error('Run stream error:', error);
     if (!res.headersSent) {

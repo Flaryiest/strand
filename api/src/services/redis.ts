@@ -2,6 +2,10 @@ import { Redis } from 'ioredis';
 
 let redis: Redis | null = null;
 
+function shouldDebugRedis() {
+  return process.env.REDIS_DEBUG === '1';
+}
+
 export function getRedis(): Redis {
   const url = process.env.REDIS_URL;
   if (!url) {
@@ -63,6 +67,10 @@ export async function setRunMeta(runId: string, meta: ChatRunMeta, ttlSeconds = 
   });
   await client.expire(runMetaKey(runId), ttlSeconds);
   await client.expire(runStreamKey(runId), ttlSeconds);
+
+  if (shouldDebugRedis()) {
+    console.log('[Redis] setRunMeta', { runId, status: meta.status });
+  }
 }
 
 export async function patchRunMeta(runId: string, patch: Partial<ChatRunMeta>, ttlSeconds = 60 * 60 * 24) {
@@ -79,6 +87,10 @@ export async function patchRunMeta(runId: string, patch: Partial<ChatRunMeta>, t
 
   await client.expire(runMetaKey(runId), ttlSeconds);
   await client.expire(runStreamKey(runId), ttlSeconds);
+
+  if (shouldDebugRedis() && Object.keys(payload).length > 0) {
+    console.log('[Redis] patchRunMeta', { runId, patch: Object.keys(payload) });
+  }
 }
 
 export async function getRunMeta(runId: string): Promise<ChatRunMeta | null> {
@@ -105,6 +117,12 @@ export async function getRunMeta(runId: string): Promise<ChatRunMeta | null> {
 export async function appendRunEvent(runId: string, event: unknown): Promise<string> {
   const client = getRedis();
   const id = await client.xadd(runStreamKey(runId), '*', 'json', JSON.stringify(event));
+
+  if (shouldDebugRedis()) {
+    const type = (event as any)?.type;
+    console.log('[Redis] appendRunEvent', { runId, id, type: typeof type === 'string' ? type : undefined });
+  }
+
   return id;
 }
 
