@@ -1,6 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth } from '../middleware/auth.middle.js';
+import { addRunSubscriber, startChatRun } from '../services/chatRunExecutor.js';
 
 const chat: Router = express.Router();
 const prisma = new PrismaClient();
@@ -272,6 +273,193 @@ chat.get('/list', async (req: Request, res: Response): Promise<any> => {
       success: false,
       error: 'Failed to list conversations'
     });
+  }
+});
+
+// Start an AI run (non-streaming) and return a runId for EventSource subscription
+chat.post('/send', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const userId = (req as any).user?.id;
+    const { conversationUuid, message, location } = req.body;
+
+    if (!userId) {
+      return res.status(401).send('Unauthorized');
+    }
+
+    if (!message || !conversationUuid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message and conversationUuid are required'
+      });
+    }
+
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        uuid: conversationUuid,
+        userId
+      } as any,
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' }
+        }
+      }
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Conversation not found'
+      });
+    }
+
+    const userMessage = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        role: 'user',
+        content: message,
+        metadata: {}
+      }
+    });
+
+    // Create an assistant placeholder message immediately.
+    const assistantMessage = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: '',
+        metadata: {
+          status: 'streaming'
+        }
+      }
+    });
+
+    const run = await prisma.chatRun.create({
+      data: {
+        userId,
+        conversationId: conversation.id,
+        status: 'queued',
+        userMessageId: userMessage.id,
+        assistantMessageId: assistantMessage.id,
+        location: location || null,
+        metadata: {}
+      }
+    });
+
+    await prisma.message.update({
+      where: { id: assistantMessage.id },
+      data: {
+        metadata: {
+          status: 'streaming',
+          runId: run.id
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      runId: run.id,
+      assistantMessageId: assistantMessage.id
+    });
+
+    // Run in background (do not await).
+    startChatRun(run.id).catch((err) => {
+      console.error('[ChatRun] startChatRun failed:', err);
+    });
+  } catch (error) {
+    console.error('Send chat error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start chat'
+    });
+  }
+});
+
+// Resumable SSE stream for a run (EventSource)
+chat.get('/runs/:runId/stream', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const userId = (req as any).user?.id;
+    const { runId } = req.params;
+
+    if (!userId) {
+      return res.status(401).send('Unauthorized');
+    }
+
+    const run = await prisma.chatRun.findFirst({
+      where: {
+        id: runId,
+        userId
+      }
+    });
+
+    if (!run) {
+      return res.status(404).json({
+        success: false,
+        error: 'Run not found'
+      });
+    }
+
+    // SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Determine replay cursor (query param preferred for first connect after refresh)
+    const afterSeqRaw = typeof req.query.afterSeq === 'string' ? req.query.afterSeq : undefined;
+    const afterSeqFromQuery = afterSeqRaw ? Number.parseInt(afterSeqRaw, 10) : NaN;
+
+    const lastEventIdRaw = req.header('last-event-id');
+    const afterSeqFromHeader = lastEventIdRaw ? Number.parseInt(lastEventIdRaw, 10) : NaN;
+
+    const afterSeq = Number.isFinite(afterSeqFromQuery)
+      ? afterSeqFromQuery
+      : Number.isFinite(afterSeqFromHeader)
+        ? afterSeqFromHeader
+        : 0;
+
+    // Replay stored events
+    const priorEvents = await prisma.chatRunEvent.findMany({
+      where: {
+        runId,
+        seq: {
+          gt: afterSeq
+        }
+      },
+      orderBy: {
+        seq: 'asc'
+      }
+    });
+
+    for (const e of priorEvents) {
+      res.write(`id: ${e.seq}\n`);
+      res.write(`data: ${JSON.stringify(e.data)}\n\n`);
+    }
+
+    // If the run is already finished, end after replay.
+    if (run.status === 'done' || run.status === 'error' || run.status === 'canceled') {
+      res.end();
+      return;
+    }
+
+    // Subscribe for live events
+    const remove = addRunSubscriber(runId, res);
+
+    req.on('close', () => {
+      remove();
+    });
+  } catch (error) {
+    console.error('Run stream error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to stream run'
+      });
+    } else {
+      try {
+        res.end();
+      } catch {
+        // ignore
+      }
+    }
   }
 });
 

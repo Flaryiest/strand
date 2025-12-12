@@ -31,6 +31,9 @@ export default function ChatPage() {
     setConversationUuid,
     setConversations,
     setLoadingConversations,
+    setActiveRun,
+    setLastEventSeq,
+    resumeRunStreaming,
     setMessages,
     addUserMessage,
     addStreamEvent,
@@ -52,6 +55,56 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  const runSeqStorageKey = (runId: string) => `strand:chatRun:${runId}:lastSeq`;
+
+  const stopEventSource = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+  };
+
+  const startEventSource = (runId: string) => {
+    stopEventSource();
+
+    const saved = sessionStorage.getItem(runSeqStorageKey(runId));
+    const afterSeq = saved ? Number.parseInt(saved, 10) : 0;
+    const url = `${baseUrl}/chat/runs/${runId}/stream?afterSeq=${Number.isFinite(afterSeq) ? afterSeq : 0}`;
+
+    const es = new EventSource(url, { withCredentials: true });
+    eventSourceRef.current = es;
+
+    es.onmessage = (evt) => {
+      try {
+        const eventData = JSON.parse(evt.data);
+        const seq = evt.lastEventId ? Number.parseInt(evt.lastEventId, 10) : NaN;
+        if (Number.isFinite(seq)) {
+          setLastEventSeq(seq);
+          sessionStorage.setItem(runSeqStorageKey(runId), String(seq));
+        }
+
+        if (eventData.type === 'done') {
+          sessionStorage.removeItem(runSeqStorageKey(runId));
+          completeStreaming();
+          refreshConversations();
+          stopEventSource();
+        } else if (eventData.type === 'error') {
+          setError(eventData.data?.message || 'Stream error');
+          stopEventSource();
+        } else {
+          addStreamEvent(eventData);
+        }
+      } catch (e) {
+        console.error('EventSource parse error:', e);
+      }
+    };
+
+    es.onerror = () => {
+      // Allow EventSource to auto-reconnect; do not force-close here.
+    };
+  };
 
   const refreshConversations = async () => {
     if (!isAuthenticated) return;
@@ -114,12 +167,30 @@ export default function ChatPage() {
                   content: msg.content,
                   events: msg.eventLog || [],
                   itinerary: msg.metadata?.itinerary || undefined,
+                  metadata: msg.metadata || undefined,
                   createdAt: msg.createdAt
                 }))
               );
               setShowInitialUI(false);
               setIsPublicView(false);
               setShouldScrollToBottom(true);
+
+              // If there's an active run, reattach streaming (refresh recovery)
+              const lastAssistant = [...data.conversation.messages]
+                .reverse()
+                .find((m: any) => m.role === 'assistant');
+
+              if (
+                lastAssistant?.metadata?.status === 'streaming' &&
+                lastAssistant?.metadata?.runId
+              ) {
+                resumeRunStreaming(lastAssistant.metadata.runId, lastAssistant.id);
+                startEventSource(lastAssistant.metadata.runId);
+              } else {
+                stopEventSource();
+                setActiveRun(null);
+              }
+
               // Brief delay for smooth transition
               setTimeout(() => setIsTransitioning(false), 150);
               return;
@@ -140,12 +211,14 @@ export default function ChatPage() {
                 content: msg.content,
                 events: msg.eventLog || [],
                 itinerary: msg.metadata?.itinerary || undefined,
+                metadata: msg.metadata || undefined,
                 createdAt: msg.createdAt
               }))
             );
             setShowInitialUI(false);
             setIsPublicView(true);
             setShouldScrollToBottom(true);
+            stopEventSource();
             // Brief delay for smooth transition
             setTimeout(() => setIsTransitioning(false), 150);
             return;
@@ -167,6 +240,13 @@ export default function ChatPage() {
       loadConversation();
     }
   }, [chatId, isLoading, isAuthenticated]);
+
+  // Cleanup EventSource on unmount
+  useEffect(() => {
+    return () => {
+      stopEventSource();
+    };
+  }, []);
 
   // Load conversation list for sidebar
   useEffect(() => {
@@ -364,9 +444,9 @@ export default function ChatPage() {
     addUserMessage(trimmedInput);
     setInputValue('');
 
-    // Start streaming from API
+    // Start run from API, then subscribe via EventSource
     try {
-      const response = await fetch(`${baseUrl}/chat/stream`, {
+      const response = await fetch(`${baseUrl}/chat/send`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -379,44 +459,21 @@ export default function ChatPage() {
         })
       });
 
-      if (!response.ok || !response.body) {
-        throw new Error('Failed to start stream');
+      if (!response.ok) {
+        throw new Error('Failed to start run');
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const eventData = JSON.parse(line.substring(6));
-
-              if (eventData.type === 'done') {
-                completeStreaming();
-                // After the first prompt, the backend may update the conversation title
-                // (or it may only become visible to /chat/list after persistence completes).
-                refreshConversations();
-              } else {
-                addStreamEvent(eventData);
-              }
-            } catch (e) {
-              console.error('Parse error:', e);
-            }
-          }
-        }
+      const data = await response.json();
+      if (!data.success || !data.runId) {
+        throw new Error(data.error || 'Failed to start run');
       }
+
+      setActiveRun(data.runId, data.assistantMessageId || null);
+      startEventSource(data.runId);
     } catch (err) {
       console.error('Stream error:', err);
       setError('Failed to get response. Please try again.');
+      stopEventSource();
     }
   };
 

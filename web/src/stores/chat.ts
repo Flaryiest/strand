@@ -33,6 +33,7 @@ export interface Message {
   content: string;
   events?: StreamEvent[];
   itinerary?: ItineraryRecommendation;
+  metadata?: any;
   createdAt: string;
 }
 
@@ -61,6 +62,9 @@ interface ChatState {
   streamingEvents: StreamEvent[];
   accumulatedResponse: string;
   streamingItinerary: ItineraryRecommendation | null;
+  activeRunId: string | null;
+  activeAssistantMessageId: number | null;
+  lastEventSeq: number;
   error: string | null;
   conversations: GroupedConversations;
   isLoadingConversations: boolean;
@@ -69,6 +73,9 @@ interface ChatState {
   setConversationUuid: (uuid: string) => void;
   setConversations: (conversations: GroupedConversations) => void;
   setLoadingConversations: (loading: boolean) => void;
+  setActiveRun: (runId: string | null, assistantMessageId?: number | null) => void;
+  setLastEventSeq: (seq: number) => void;
+  resumeRunStreaming: (runId: string, assistantMessageId: number) => void;
   addUserMessage: (content: string) => void;
   addStreamEvent: (event: StreamEvent) => void;
   completeStreaming: () => void;
@@ -93,6 +100,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streamingEvents: [],
   accumulatedResponse: '',
   streamingItinerary: null,
+  activeRunId: null,
+  activeAssistantMessageId: null,
+  lastEventSeq: 0,
   error: null,
   conversations: emptyGroupedConversations,
   isLoadingConversations: false,
@@ -105,6 +115,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setLoadingConversations: (loading) =>
     set({ isLoadingConversations: loading }),
+
+  setActiveRun: (runId, assistantMessageId = null) =>
+    set({ activeRunId: runId, activeAssistantMessageId: assistantMessageId }),
+
+  setLastEventSeq: (seq) => set({ lastEventSeq: seq }),
+
+  resumeRunStreaming: (runId, assistantMessageId) =>
+    set({
+      isStreaming: true,
+      streamingEvents: [],
+      accumulatedResponse: '',
+      streamingItinerary: null,
+      error: null,
+      activeRunId: runId,
+      activeAssistantMessageId: assistantMessageId,
+      lastEventSeq: 0
+    }),
 
   setMessages: (messages) => set({ messages }),
 
@@ -121,6 +148,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingEvents: [],
       accumulatedResponse: '',
       streamingItinerary: null,
+      lastEventSeq: 0,
       error: null
     }));
   },
@@ -150,10 +178,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   completeStreaming: () => {
-    const { streamingEvents, accumulatedResponse, streamingItinerary } = get();
+    const {
+      streamingEvents,
+      accumulatedResponse,
+      streamingItinerary,
+      activeAssistantMessageId
+    } = get();
 
     const assistantMessage: Message = {
-      id: Date.now(),
+      id: activeAssistantMessageId ?? Date.now(),
       role: 'assistant',
       content: accumulatedResponse,
       events: streamingEvents,
@@ -161,13 +194,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
       createdAt: new Date().toISOString()
     };
 
-    set((state) => ({
-      messages: [...state.messages, assistantMessage],
-      isStreaming: false,
-      streamingEvents: [],
-      accumulatedResponse: '',
-      streamingItinerary: null
-    }));
+    set((state) => {
+      const existingIndex = state.messages.findIndex(
+        (m) => m.id === assistantMessage.id
+      );
+
+      const nextMessages = [...state.messages];
+      if (existingIndex >= 0) {
+        nextMessages[existingIndex] = assistantMessage;
+      } else {
+        nextMessages.push(assistantMessage);
+      }
+
+      return {
+        messages: nextMessages,
+        isStreaming: false,
+        streamingEvents: [],
+        accumulatedResponse: '',
+        streamingItinerary: null,
+        activeRunId: null,
+        activeAssistantMessageId: null,
+        lastEventSeq: 0
+      };
+    });
   },
 
   setError: (error) => set({ error, isStreaming: false }),
@@ -181,6 +230,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingEvents: [],
       accumulatedResponse: '',
       streamingItinerary: null,
+      activeRunId: null,
+      activeAssistantMessageId: null,
+      lastEventSeq: 0,
       error: null
     })
 }));
