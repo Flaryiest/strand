@@ -24,27 +24,12 @@ export class RedditAgent extends BaseToolAgent {
   description = 'Searches Reddit for authentic local recommendations and discussions';
   protected maxIterations = 3;
 
-  // City-specific subreddit mappings
-  private subredditMap: Record<string, string[]> = {
-    'san francisco': ['sanfrancisco', 'AskSF', 'foodsf', 'bayarea'],
-    'sf': ['sanfrancisco', 'AskSF', 'foodsf', 'bayarea'],
-    'new york': ['nyc', 'AskNYC', 'FoodNYC', 'newyorkcity'],
-    'nyc': ['nyc', 'AskNYC', 'FoodNYC', 'newyorkcity'],
-    'los angeles': ['LosAngeles', 'AskLosAngeles', 'FoodLosAngeles', 'LAlist'],
-    'la': ['LosAngeles', 'AskLosAngeles', 'FoodLosAngeles'],
-    'chicago': ['chicago', 'chicagofood', 'AskChicago'],
-    'seattle': ['Seattle', 'SeattleWA', 'seattlefood'],
-    'austin': ['Austin', 'austinfood', 'AskAustin'],
-    'portland': ['Portland', 'askportland', 'portlandfood'],
-    'denver': ['Denver', 'denverfood'],
-    'boston': ['boston', 'bostonfoods'],
-    'miami': ['Miami', 'miamifood'],
-    'default': ['travel', 'solotravel', 'food', 'Foodies']
-  };
+  // Cache for AI-determined subreddits to avoid repeated calls
+  private subredditCache = new Map<string, string[]>();
 
-  protected getInitialParams(context: AgentContext): Record<string, any> {
-    // Find relevant subreddits based on location
-    const subreddits = this.getSubredditsForLocation(context.location);
+  protected async getInitialParams(context: AgentContext): Promise<Record<string, any>> {
+    // Find relevant subreddits based on location using AI
+    const subreddits = await this.getSubredditsForLocation(context.location, context.goal);
     
     return {
       query: context.goal,
@@ -54,20 +39,50 @@ export class RedditAgent extends BaseToolAgent {
     };
   }
 
-  private getSubredditsForLocation(location?: string): string[] {
-    if (!location) return this.subredditMap['default'];
-
-    const locationLower = location.toLowerCase();
+  /**
+   * Use AI to find relevant subreddits for any location
+   */
+  private async getSubredditsForLocation(location?: string, goal?: string): Promise<string[]> {
+    const defaultSubs = ['travel', 'solotravel', 'food', 'Foodies', 'dateideas'];
     
-    // Check for exact matches first
-    for (const [key, subs] of Object.entries(this.subredditMap)) {
-      if (locationLower.includes(key)) {
-        return subs;
-      }
+    if (!location) return defaultSubs;
+
+    // Check cache first
+    const cacheKey = `${location}|${goal || ''}`.toLowerCase();
+    if (this.subredditCache.has(cacheKey)) {
+      return this.subredditCache.get(cacheKey)!;
     }
 
-    // Default fallback
-    return this.subredditMap['default'];
+    try {
+      const prompt = `You are a Reddit expert. Given a location and search goal, suggest the most relevant subreddits to search for local recommendations.
+
+Location: ${location}
+Goal: ${goal || 'local recommendations'}
+
+Return a JSON array of 4-6 subreddit names (without the r/ prefix) that would be most useful for finding local recommendations in this area. Consider:
+1. City/region-specific subreddits (e.g., "Seattle", "bayarea", "toronto")
+2. Local food subreddits (e.g., "seattlefood", "FoodNYC") 
+3. Local ask subreddits (e.g., "AskNYC", "AskSF", "askTO")
+4. Activity-specific subreddits if relevant to the goal
+5. General fallbacks like "travel" or "food" if no local subs exist
+
+Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "seattlefood", "AskSeattle"]`;
+
+      const response = await this.callLLM(prompt);
+      const subreddits = this.parseJsonResponse<string[]>(response);
+      
+      if (Array.isArray(subreddits) && subreddits.length > 0) {
+        // Cache the result
+        this.subredditCache.set(cacheKey, subreddits);
+        console.log(`[RedditAgent] AI suggested subreddits for "${location}": ${subreddits.join(', ')}`);
+        return subreddits;
+      }
+    } catch (error) {
+      console.error('[RedditAgent] Error getting subreddits from AI:', error);
+    }
+
+    // Fallback to defaults
+    return defaultSubs;
   }
 
   protected async search(params: RedditSearchParams): Promise<RedditSearchResult[]> {
@@ -153,8 +168,8 @@ export class RedditAgent extends BaseToolAgent {
     context: AgentContext
   ): Promise<EvaluationResult> {
     if (results.length === 0) {
-      // Try different subreddits
-      const newSubreddits = this.getSubredditsForLocation(context.location);
+      // Try different subreddits using AI
+      const newSubreddits = await this.getSubredditsForLocation(context.location, context.goal);
       return {
         sufficient: false,
         score: 0,

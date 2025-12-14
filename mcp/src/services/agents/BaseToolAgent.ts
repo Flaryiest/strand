@@ -57,7 +57,7 @@ export abstract class BaseToolAgent {
   /**
    * Get the initial search parameters from context
    */
-  protected abstract getInitialParams(context: AgentContext): Record<string, any>;
+  protected abstract getInitialParams(context: AgentContext): Record<string, any> | Promise<Record<string, any>>;
 
   /**
    * Main execution loop with iterative refinement
@@ -67,7 +67,7 @@ export abstract class BaseToolAgent {
     let allResults: any[] = [];
     let iteration = 0;
     let totalApiCalls = 0;
-    let params = this.getInitialParams(context);
+    let params = await this.getInitialParams(context);
 
     console.log(`[${this.name}] Starting execution for goal: ${context.goal}`);
 
