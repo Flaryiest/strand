@@ -8,7 +8,7 @@ import { useChatStore } from '@/stores/chat';
 import Sidebar from '@/components/sidebar/sidebar';
 import Topbar from '@/components/topbar/topbar';
 import LocationInput from '@/components/locationInput/locationInput';
-import ReasoningStream from '@/components/reasoningStream/reasoningStream';
+import { NarrativeStream } from '@/components/narrativeStream';
 import ItineraryView from '@/components/itineraryView/itineraryView';
 import styles from './chat.module.css';
 
@@ -701,44 +701,27 @@ export default function ChatPage() {
                 <div key={msg.id} className={styles.messageBlock}>
                   {msg.role === 'user' ? (
                     <div className={styles.userMessage}>
-                      <div className={styles.userMessageIcon}>
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                      </div>
+                      <div className={styles.userLabel}>You</div>
                       <div className={styles.userMessageContent}>
                         {msg.content}
                       </div>
                     </div>
-                  ) : msg.itinerary ? (
-                    // Render structured itinerary if available
-                    <div className={styles.itineraryMessage}>
-                      <ReasoningStream
-                        events={msg.events || []}
-                        accumulatedResponse=""
-                      />
-                      <ItineraryView
-                        itinerary={msg.itinerary}
-                        onRefine={() => {
-                          // Focus the input for follow-up
-                          textareaRef.current?.focus();
-                        }}
-                      />
-                    </div>
                   ) : (
-                    // Fallback: show reasoning events only, no text content
-                    <ReasoningStream
-                      events={msg.events || []}
-                      accumulatedResponse=""
-                    />
+                    <div className={styles.assistantMessage}>
+                      <div className={styles.assistantLabel}>Strand</div>
+                      <NarrativeStream
+                        events={msg.events || []}
+                        isStreaming={false}
+                      />
+                      {msg.itinerary && (
+                        <ItineraryView
+                          itinerary={msg.itinerary}
+                          onRefine={() => {
+                            textareaRef.current?.focus();
+                          }}
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
@@ -746,14 +729,16 @@ export default function ChatPage() {
               {/* Active streaming */}
               {isStreaming && (
                 <div className={styles.streamingContainer}>
-                  <ReasoningStream
-                    events={streamingEvents}
-                    accumulatedResponse=""
-                  />
-                  {/* Show itinerary as it becomes available */}
-                  {streamingItinerary && (
-                    <ItineraryView itinerary={streamingItinerary} />
-                  )}
+                  <div className={styles.assistantMessage}>
+                    <div className={styles.assistantLabel}>Strand</div>
+                    <NarrativeStream
+                      events={streamingEvents}
+                      isStreaming={true}
+                    />
+                    {streamingItinerary && (
+                      <ItineraryView itinerary={streamingItinerary} />
+                    )}
+                  </div>
                 </div>
               )}
 

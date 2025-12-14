@@ -112,19 +112,19 @@ export class Orchestrator {
       preferences
     };
 
-    transparency?.thinking('Analyzing your request and planning the search strategy...');
+    transparency?.thinking('Let me understand what you\'re looking for and find the best options...');
 
     // Phase 1: Create execution plan
     const plan = await this.createPlan(query, location, budget);
     console.log('[Orchestrator] Plan created:', JSON.stringify(plan, null, 2));
 
-    transparency?.analyzing('Planning complete', {
+    transparency?.analyzing(`I'll search ${plan.agents.length} sources to find the perfect recommendations for you.`, {
       reasoning: plan.reasoning,
       agents: plan.agents.map(a => a.name)
     });
 
     // Phase 2: Execute agents in parallel
-    transparency?.thinking(`Searching ${plan.agents.length} data sources in parallel...`);
+    transparency?.thinking(`Searching across Google Maps, web articles, and local discussions to gather comprehensive information...`);
     let results = await this.executeAgentsParallel(plan.agents, context, transparency);
 
     // Phase 3: Evaluate combined results and potentially request more
@@ -134,13 +134,13 @@ export class Orchestrator {
 
     while (round < this.maxRounds) {
       round++;
-      transparency?.analyzing(`Evaluating results (round ${round}/${this.maxRounds})...`);
+      transparency?.analyzing(`Reviewing what I've found and checking if I have enough quality information...`);
 
       const evaluation = await this.evaluateCombinedResults(query, location, results);
       confidence = evaluation.confidence;
       topRecommendations = evaluation.topRecommendations;
 
-      transparency?.analyzing('Evaluation summary', {
+      transparency?.analyzing('Looking at the data quality and coverage', {
         sufficient: evaluation.sufficient,
         confidence: evaluation.confidence,
         gaps: evaluation.gaps,
@@ -158,13 +158,13 @@ export class Orchestrator {
       });
 
       if (evaluation.sufficient) {
-        transparency?.deciding('Data collection complete, synthesizing recommendations...', 'Sufficient coverage across sources; proceeding to final ranking and itinerary generation.');
+        transparency?.deciding('I have enough quality information now. Let me put together my recommendations for you...', 'Compiling the best options based on ratings, reviews, and local insights.');
         break;
       }
 
       // Request additional searches if needed
       if (evaluation.additionalQueries && evaluation.additionalQueries.length > 0) {
-        transparency?.thinking('Gathering additional information...', 60);
+        transparency?.thinking('I need a bit more information to give you the best recommendations. Let me dig deeper...');
         
         const additionalPlans = evaluation.additionalQueries.map((q: any) => ({
           name: q.agent,
@@ -186,7 +186,7 @@ export class Orchestrator {
     }
 
     // Phase 4: Synthesize final response with structured itinerary
-    transparency?.deciding('Creating your personalized recommendations...', 'Combining sources, weighing consensus, and tailoring to your constraints.');
+    transparency?.deciding('Now let me create your personalized recommendations based on everything I\'ve found...', 'Combining the best insights from reviews, local tips, and verified data.');
     
     // Generate both structured itinerary and text summary
     const { response, itinerary } = await this.synthesizeWithItinerary(
@@ -277,10 +277,16 @@ export class Orchestrator {
         transparency: transparency as any
       };
 
+      const narrativeMessages: Record<string, string> = {
+        'places_agent': `Searching Google Maps for places matching "${plan.goal}"...`,
+        'web_agent': `Looking through travel blogs and review sites for insights...`,
+        'reddit_agent': `Checking Reddit for local recommendations and honest opinions...`
+      };
+
       transparency?.emitStep({
         type: 'action',
         data: {
-          message: `Searching ${this.getAgentDisplayName(plan.name)}...`,
+          message: narrativeMessages[plan.name] || `Searching ${this.getAgentDisplayName(plan.name)}...`,
           action: plan.name,
           params: { goal: plan.goal }
         }
@@ -291,10 +297,16 @@ export class Orchestrator {
 
         const summary = this.summarizeAgentResult(plan.name, result?.results || []);
         
+        const resultMessages: Record<string, string> = {
+          'places_agent': `Found ${result.results.length} places with ratings and reviews`,
+          'web_agent': `Found ${result.results.length} articles and reviews to analyze`,
+          'reddit_agent': `Found ${result.results.length} Reddit discussions with local insights`
+        };
+
         transparency?.emitStep({
           type: 'data',
           data: {
-            message: `Found ${result.results.length} results from ${this.getAgentDisplayName(plan.name)}`,
+            message: resultMessages[plan.name] || `Found ${result.results.length} results from ${this.getAgentDisplayName(plan.name)}`,
             results: { count: result.results.length, iterations: result.iterations, summary }
           }
         });
