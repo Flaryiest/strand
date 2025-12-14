@@ -1,19 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { StreamEvent } from '@/stores/chat';
-import ToolIndicator from './ToolIndicator';
+import ToolIndicator, { ToolDetailedResult } from './ToolIndicator';
 import styles from './narrativeStream.module.css';
-
-interface ToolResult {
-  type: 'place' | 'url' | 'reddit' | 'insight';
-  name?: string;
-  url?: string;
-  rating?: number;
-  snippet?: string;
-  subreddit?: string;
-  quote?: string;
-  author?: string;
-}
 
 interface NarrativeStreamProps {
   events: StreamEvent[];
@@ -27,7 +16,84 @@ interface ParsedSegment {
   toolStatus?: 'running' | 'complete' | 'error';
   toolMessage?: string;
   toolResult?: string;
-  detailedResults?: ToolResult[];
+  detailedResults?: ToolDetailedResult[];
+}
+
+// Typewriter text component
+function TypewriterText({ 
+  text, 
+  isLast, 
+  isStreaming,
+  onComplete 
+}: { 
+  text: string; 
+  isLast: boolean;
+  isStreaming: boolean;
+  onComplete?: () => void;
+}) {
+  const [displayedLength, setDisplayedLength] = useState(0);
+  const textRef = useRef(text);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Track if we've caught up to current text
+  const isCaughtUp = displayedLength >= text.length;
+
+  useEffect(() => {
+    // When text changes, update our ref but keep displayed position
+    textRef.current = text;
+  }, [text]);
+
+  useEffect(() => {
+    // Don't run if we've caught up
+    if (displayedLength >= textRef.current.length) {
+      onComplete?.();
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      setDisplayedLength(prev => {
+        const targetLength = textRef.current.length;
+        const nextLength = Math.min(prev + 2, targetLength); // 2 chars at a time
+        if (nextLength >= targetLength) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          onComplete?.();
+        }
+        return nextLength;
+      });
+    }, 12); // Fast typing speed
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [text, displayedLength, onComplete]);
+
+  const displayedText = text.slice(0, displayedLength);
+  
+  // Show cursor only on the last segment while streaming and not caught up
+  const showCursor = isLast && isStreaming && !isCaughtUp;
+
+  return (
+    <div className={styles.narrativeText}>
+      <ReactMarkdown
+        components={{
+          h2: ({ children }) => <h2 className={styles.mdH2}>{children}</h2>,
+          h3: ({ children }) => <h3 className={styles.mdH3}>{children}</h3>,
+          p: ({ children }) => <p className={styles.mdP}>{children}</p>,
+          strong: ({ children }) => <strong className={styles.mdStrong}>{children}</strong>,
+          ul: ({ children }) => <ul className={styles.mdUl}>{children}</ul>,
+          li: ({ children }) => <li className={styles.mdLi}>{children}</li>,
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer" className={styles.mdLink}>
+              {children}
+            </a>
+          ),
+        }}
+      >
+        {displayedText}
+      </ReactMarkdown>
+      {showCursor && <span className={styles.cursor} />}
+    </div>
+  );
 }
 
 export default function NarrativeStream({
@@ -143,33 +209,22 @@ export default function NarrativeStream({
     return null;
   }
 
+  // Find the index of the last text segment for cursor placement
+  const lastTextIndex = segments.reduce((last, seg, idx) => 
+    seg.type === 'text' ? idx : last, -1);
+
   return (
     <div className={styles.narrativeContainer}>
       {segments.map((segment, index) => {
         if (segment.type === 'text') {
+          const isLastText = index === lastTextIndex;
           return (
-            <div key={index} className={styles.narrativeText}>
-              <ReactMarkdown
-                components={{
-                  h2: ({ children }) => <h2 className={styles.mdH2}>{children}</h2>,
-                  h3: ({ children }) => <h3 className={styles.mdH3}>{children}</h3>,
-                  p: ({ children }) => <p className={styles.mdP}>{children}</p>,
-                  strong: ({ children }) => <strong className={styles.mdStrong}>{children}</strong>,
-                  ul: ({ children }) => <ul className={styles.mdUl}>{children}</ul>,
-                  li: ({ children }) => <li className={styles.mdLi}>{children}</li>,
-                  a: ({ href, children }) => (
-                    <a href={href} target="_blank" rel="noopener noreferrer" className={styles.mdLink}>
-                      {children}
-                    </a>
-                  ),
-                }}
-              >
-                {segment.content || ''}
-              </ReactMarkdown>
-              {isStreaming && index === segments.length - 1 && (
-                <span className={styles.cursor}>|</span>
-              )}
-            </div>
+            <TypewriterText
+              key={index}
+              text={segment.content || ''}
+              isLast={isLastText}
+              isStreaming={isStreaming}
+            />
           );
         }
 
@@ -189,10 +244,10 @@ export default function NarrativeStream({
         return null;
       })}
 
-      {/* Show cursor at end if streaming with no text yet */}
+      {/* Show cursor only if streaming with no segments yet */}
       {isStreaming && segments.length === 0 && (
         <div className={styles.narrativeText}>
-          <span className={styles.cursor}>|</span>
+          <span className={styles.cursor} />
         </div>
       )}
     </div>
@@ -202,57 +257,63 @@ export default function NarrativeStream({
 /**
  * Extract detailed results for display in tool indicator
  */
-function extractDetailedResults(results: any, toolName?: string): ToolResult[] {
+function extractDetailedResults(results: any, toolName?: string): ToolDetailedResult[] {
   if (!results) return [];
   
-  const detailed: ToolResult[] = [];
+  const detailed: ToolDetailedResult[] = [];
   const summary = results.summary;
   
   // Handle places agent results
   if (toolName === 'places_agent' && summary?.topPlaces) {
-    for (const place of summary.topPlaces.slice(0, 4)) {
+    for (const place of summary.topPlaces.slice(0, 6)) {
       if (place?.name) {
         detailed.push({
           type: 'place',
           name: place.name,
-          rating: place.rating
+          rating: place.rating,
+          address: place.address
         });
       }
     }
   }
   
   // Handle web agent results
-  if (toolName === 'web_agent' && summary?.sampleUrls) {
-    for (const url of summary.sampleUrls.slice(0, 3)) {
-      if (url) {
-        detailed.push({
-          type: 'url',
-          url: url,
-          name: summary.sources?.[summary.sampleUrls.indexOf(url)]
-        });
+  if (toolName === 'web_agent' && summary) {
+    // Include full URLs
+    if (summary.sampleUrls) {
+      for (let i = 0; i < Math.min(summary.sampleUrls.length, 5); i++) {
+        const url = summary.sampleUrls[i];
+        if (url) {
+          detailed.push({
+            type: 'url',
+            url: url,
+            title: summary.sources?.[i]
+          });
+        }
       }
     }
   }
   
   // Handle reddit agent results
   if (toolName === 'reddit_agent' && summary) {
-    // Show subreddits searched
+    // Show subreddits with thread info
     if (summary.subreddits?.length > 0) {
-      for (const sub of summary.subreddits.slice(0, 3)) {
+      for (const sub of summary.subreddits.slice(0, 4)) {
         detailed.push({
           type: 'reddit',
           subreddit: sub
         });
       }
     }
-    // Show sample comments
+    // Show sample comments with more context
     if (summary.sampleComments?.length > 0) {
-      for (const comment of summary.sampleComments.slice(0, 2)) {
+      for (const comment of summary.sampleComments.slice(0, 4)) {
         if (comment?.body) {
           detailed.push({
             type: 'reddit',
-            quote: comment.body.slice(0, 150) + (comment.body.length > 150 ? '...' : ''),
-            author: comment.author
+            quote: comment.body.slice(0, 200) + (comment.body.length > 200 ? '...' : ''),
+            author: comment.author,
+            score: comment.score
           });
         }
       }

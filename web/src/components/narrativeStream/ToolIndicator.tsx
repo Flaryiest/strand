@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import styles from './narrativeStream.module.css';
 
-interface ToolResult {
+export interface ToolDetailedResult {
   type: 'place' | 'url' | 'reddit' | 'insight';
   name?: string;
   url?: string;
@@ -9,6 +10,9 @@ interface ToolResult {
   subreddit?: string;
   quote?: string;
   author?: string;
+  address?: string;
+  title?: string;
+  score?: number;
 }
 
 interface ToolIndicatorProps {
@@ -16,7 +20,7 @@ interface ToolIndicatorProps {
   status: 'running' | 'complete' | 'error';
   message?: string;
   resultSummary?: string;
-  detailedResults?: ToolResult[];
+  detailedResults?: ToolDetailedResult[];
 }
 
 const toolLabels: Record<string, string> = {
@@ -36,61 +40,107 @@ export default function ToolIndicator({
   resultSummary,
   detailedResults
 }: ToolIndicatorProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const label = toolLabels[toolName] || toolName;
+  const hasDetails = detailedResults && detailedResults.length > 0;
 
   return (
     <div
-      className={`${styles.toolIndicator} ${status === 'running' ? styles.toolRunning : ''} ${status === 'error' ? styles.toolError : ''}`}
+      className={`${styles.toolIndicator} ${status === 'running' ? styles.toolRunning : ''} ${status === 'error' ? styles.toolError : ''} ${isExpanded ? styles.toolExpanded : ''}`}
     >
-      <div className={styles.toolHeader}>
+      <div 
+        className={styles.toolHeader}
+        onClick={() => hasDetails && status === 'complete' && setIsExpanded(!isExpanded)}
+        style={{ cursor: hasDetails && status === 'complete' ? 'pointer' : 'default' }}
+      >
         <span className={styles.toolLabel}>{label}</span>
-        {status === 'running' && (
-          <span className={styles.toolSpinner}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 2v4m0 12v4m-10-10h4m12 0h4" />
-            </svg>
-          </span>
-        )}
-        {status === 'complete' && (
-          <span className={styles.toolCheck}>✓</span>
-        )}
+        <div className={styles.toolHeaderRight}>
+          {status === 'running' && (
+            <span className={styles.toolSpinner}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 2v4m0 12v4m-10-10h4m12 0h4" />
+              </svg>
+            </span>
+          )}
+          {status === 'complete' && (
+            <>
+              <span className={styles.toolCheck}>✓</span>
+              {hasDetails && (
+                <span className={styles.toolExpandIcon}>
+                  {isExpanded ? '−' : '+'}
+                </span>
+              )}
+            </>
+          )}
+        </div>
       </div>
+      
       {message && (
         <div className={styles.toolMessage}>{message}</div>
       )}
-      {resultSummary && status === 'complete' && (
-        <div className={styles.toolResult}>{resultSummary}</div>
+      
+      {resultSummary && status === 'complete' && !isExpanded && (
+        <div className={styles.toolResult}>
+          {resultSummary}
+          {hasDetails && <span className={styles.toolExpandHint}> · Click to expand</span>}
+        </div>
       )}
       
-      {/* Detailed results - places, URLs, Reddit comments */}
-      {detailedResults && detailedResults.length > 0 && status === 'complete' && (
+      {/* Expandable details section */}
+      {isExpanded && status === 'complete' && hasDetails && (
         <div className={styles.toolDetails}>
-          {detailedResults.map((result, idx) => (
+          {detailedResults!.map((result, idx) => (
             <div key={idx} className={styles.toolDetailItem}>
               {result.type === 'place' && (
-                <>
-                  <span className={styles.detailName}>{result.name}</span>
-                  {result.rating && <span className={styles.detailMeta}>{result.rating}★</span>}
-                </>
+                <div className={styles.detailPlace}>
+                  <div className={styles.detailPlaceHeader}>
+                    <span className={styles.detailName}>{result.name}</span>
+                    {result.rating && <span className={styles.detailRating}>{result.rating}★</span>}
+                  </div>
+                  {result.address && <span className={styles.detailAddress}>{result.address}</span>}
+                </div>
               )}
               {result.type === 'url' && (
-                <>
-                  <a href={result.url} target="_blank" rel="noopener noreferrer" className={styles.detailLink}>
-                    {result.name || new URL(result.url || '').hostname}
+                <div className={styles.detailUrl}>
+                  <a 
+                    href={result.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className={styles.detailLink}
+                  >
+                    {result.url}
                   </a>
-                  {result.snippet && <span className={styles.detailSnippet}>{result.snippet}</span>}
-                </>
+                  {result.title && <span className={styles.detailTitle}>{result.title}</span>}
+                  {result.snippet && <p className={styles.detailSnippet}>{result.snippet}</p>}
+                </div>
               )}
               {result.type === 'reddit' && (
-                <>
-                  <span className={styles.detailSubreddit}>r/{result.subreddit}</span>
+                <div className={styles.detailReddit}>
+                  <div className={styles.detailRedditHeader}>
+                    {result.subreddit && (
+                      <span className={styles.detailSubreddit}>r/{result.subreddit}</span>
+                    )}
+                    {result.title && (
+                      <a 
+                        href={result.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={styles.detailThreadTitle}
+                      >
+                        {result.title}
+                      </a>
+                    )}
+                  </div>
                   {result.quote && (
                     <blockquote className={styles.detailQuote}>
                       "{result.quote}"
-                      {result.author && <cite>— u/{result.author}</cite>}
+                      <div className={styles.detailQuoteMeta}>
+                        {result.author && <cite>u/{result.author}</cite>}
+                        {result.score !== undefined && <span className={styles.detailScore}>{result.score} pts</span>}
+                      </div>
                     </blockquote>
                   )}
-                </>
+                </div>
               )}
               {result.type === 'insight' && (
                 <span className={styles.detailInsight}>{result.snippet}</span>
