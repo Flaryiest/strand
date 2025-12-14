@@ -113,6 +113,10 @@ Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "se
       console.log(`[RedditAgent] Searching: ${query}`);
 
       try {
+        // Calculate num, capping at Serper's max of 30
+        const excludeCount = excludeUrls?.size || 0;
+        const requestNum = Math.min(10 + excludeCount, 30);
+        
         const response = await fetch('https://google.serper.dev/search', {
           method: 'POST',
           headers: {
@@ -121,7 +125,7 @@ Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "se
           },
           body: JSON.stringify({
             q: query,
-            num: 10 + (excludeUrls?.size || 0) // Request more to account for filtering
+            num: requestNum
           })
         });
 

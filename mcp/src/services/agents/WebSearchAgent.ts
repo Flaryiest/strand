@@ -64,6 +64,10 @@ export class WebSearchAgent extends BaseToolAgent {
     console.log(`[WebSearchAgent] Searching: ${params.query}`);
 
     try {
+      // Calculate num, capping at Serper's max of 30
+      const excludeCount = params.excludeUrls?.size || 0;
+      const requestNum = Math.min((params.num || 10) + excludeCount, 30);
+      
       const response = await fetch('https://google.serper.dev/search', {
         method: 'POST',
         headers: {
@@ -72,7 +76,7 @@ export class WebSearchAgent extends BaseToolAgent {
         },
         body: JSON.stringify({
           q: params.query,
-          num: (params.num || 10) + (params.excludeUrls?.size || 0) // Request more to account for filtering
+          num: requestNum
         })
       });
 
