@@ -21,14 +21,21 @@ interface WebSearchParams {
   fetchContent?: boolean;
   maxPages?: number;
   maxChars?: number;
+  excludeUrls?: Set<string>; // URLs to exclude from results
 }
 
 export class WebSearchAgent extends BaseToolAgent {
   name = 'web_agent';
   description = 'Searches the web for articles, reviews, and recommendations using Serper API';
   protected maxIterations = 3;
+  
+  // Store context for access in search method
+  private currentContext: AgentContext | null = null;
 
   protected getInitialParams(context: AgentContext): Record<string, any> {
+    // Store context for use in search
+    this.currentContext = context;
+    
     // Build an optimized search query
     let query = context.goal;
     if (context.location) {
@@ -38,7 +45,14 @@ export class WebSearchAgent extends BaseToolAgent {
     if (!query.toLowerCase().includes('best') && !query.toLowerCase().includes('top')) {
       query = `best ${query}`;
     }
-    return { query, num: 10, fetchContent: true, maxPages: 3, maxChars: 6000 };
+    return { 
+      query, 
+      num: 10, 
+      fetchContent: true, 
+      maxPages: 3, 
+      maxChars: 6000,
+      excludeUrls: context.seenUrls
+    };
   }
 
   protected async search(params: WebSearchParams): Promise<WebSearchResult[]> {
@@ -58,7 +72,7 @@ export class WebSearchAgent extends BaseToolAgent {
         },
         body: JSON.stringify({
           q: params.query,
-          num: params.num || 10
+          num: (params.num || 10) + (params.excludeUrls?.size || 0) // Request more to account for filtering
         })
       });
 
@@ -68,15 +82,31 @@ export class WebSearchAgent extends BaseToolAgent {
 
       const data: any = await response.json();
       
-      // Transform organic results
-      const results: WebSearchResult[] = (data.organic || []).map((item: any, index: number) => ({
-        title: item.title,
-        url: item.link,
-        snippet: item.snippet,
-        source: this.extractDomain(item.link),
-        date: item.date,
-        position: index + 1
-      }));
+      // Transform organic results, filtering out already-seen URLs
+      const excludeUrls = params.excludeUrls || this.currentContext?.seenUrls;
+      let results: WebSearchResult[] = (data.organic || [])
+        .filter((item: any) => {
+          if (excludeUrls && excludeUrls.has(item.link)) {
+            console.log(`[WebSearchAgent] Filtering out already-seen URL: ${item.link}`);
+            return false;
+          }
+          return true;
+        })
+        .map((item: any, index: number) => ({
+          title: item.title,
+          url: item.link,
+          snippet: item.snippet,
+          source: this.extractDomain(item.link),
+          date: item.date,
+          position: index + 1
+        }));
+      
+      // Add new URLs to the seen set
+      if (excludeUrls) {
+        for (const r of results) {
+          excludeUrls.add(r.url);
+        }
+      }
 
       const fetchContent = params.fetchContent !== false;
       const maxPages = Math.min(Math.max(params.maxPages ?? 3, 0), 5);
@@ -96,7 +126,7 @@ export class WebSearchAgent extends BaseToolAgent {
         }
       }
 
-      console.log(`[WebSearchAgent] Found ${results.length} web results`);
+      console.log(`[WebSearchAgent] Found ${results.length} new web results (filtered from ${data.organic?.length || 0})`);
       return results;
     } catch (error) {
       console.error('[WebSearchAgent] Search error:', error);

@@ -88,8 +88,10 @@ interface SynthesizedResult {
 export class Orchestrator {
   private agents: Map<string, BaseToolAgent>;
   private maxRounds = 2;
-  private model = 'gpt-4o'; // Use better model for orchestration
-  private miniModel = 'gpt-4o-mini'; // Cheaper model for evaluation
+  private model = 'gpt-5.2'; // Best general-purpose model for orchestration
+  private miniModel = 'gpt-5-mini'; // Cost-optimized model for evaluation
+  private reasoningEffort: 'none' | 'low' | 'medium' | 'high' | 'xhigh' = 'medium';
+  private verbosity: 'low' | 'medium' | 'high' = 'medium';
 
   constructor() {
     this.agents = new Map<string, BaseToolAgent>();
@@ -105,11 +107,17 @@ export class Orchestrator {
     const startTime = Date.now();
     const { query, location, budget, preferences, transparency } = options;
 
+    // Initialize shared caches to prevent duplicate results across agent calls
+    const seenUrls = new Set<string>();
+    const seenPlaceIds = new Set<string>();
+
     const context: AgentContext = {
       goal: query,
       location,
       budget,
-      preferences
+      preferences,
+      seenUrls,
+      seenPlaceIds
     };
 
     transparency?.thinking('Let me understand what you\'re looking for and find the best options...');
@@ -612,10 +620,15 @@ export class Orchestrator {
   }
 
   /**
-   * Call LLM with specified model
+   * Call LLM with specified model using OpenAI Responses API (GPT-5.2 compatible)
    */
   private async callLLM(prompt: string, model: string = this.model): Promise<string> {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Use lower reasoning for mini model, higher for main model
+    const isMini = model.includes('mini');
+    const effort = isMini ? 'low' : this.reasoningEffort;
+    const verb = isMini ? 'low' : this.verbosity;
+    
+    const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -623,9 +636,14 @@ export class Orchestrator {
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 2000
+        input: prompt,
+        reasoning: {
+          effort: effort
+        },
+        text: {
+          verbosity: verb
+        },
+        max_output_tokens: 3000
       })
     });
 
@@ -635,7 +653,20 @@ export class Orchestrator {
     }
 
     const data: any = await response.json();
-    return data.choices[0]?.message?.content || '';
+    
+    // Responses API returns output in a different structure
+    if (data.output && Array.isArray(data.output)) {
+      const textOutput = data.output.find((item: any) => item.type === 'message');
+      if (textOutput?.content) {
+        if (Array.isArray(textOutput.content)) {
+          const textContent = textOutput.content.find((c: any) => c.type === 'output_text');
+          return textContent?.text || '';
+        }
+        return textOutput.content;
+      }
+    }
+    
+    return data.output_text || data.text || '';
   }
 
   /**

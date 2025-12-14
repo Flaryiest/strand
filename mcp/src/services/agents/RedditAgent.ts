@@ -17,6 +17,7 @@ interface RedditSearchParams {
   subreddits?: string[];
   sort?: 'relevance' | 'hot' | 'top' | 'new';
   time?: 'hour' | 'day' | 'week' | 'month' | 'year' | 'all';
+  excludeUrls?: Set<string>; // URLs to exclude from results
 }
 
 export class RedditAgent extends BaseToolAgent {
@@ -26,8 +27,14 @@ export class RedditAgent extends BaseToolAgent {
 
   // Cache for AI-determined subreddits to avoid repeated calls
   private subredditCache = new Map<string, string[]>();
+  
+  // Store context for access in search method
+  private currentContext: AgentContext | null = null;
 
   protected async getInitialParams(context: AgentContext): Promise<Record<string, any>> {
+    // Store context for use in search
+    this.currentContext = context;
+    
     // Find relevant subreddits based on location using AI
     const subreddits = await this.getSubredditsForLocation(context.location, context.goal);
     
@@ -35,7 +42,8 @@ export class RedditAgent extends BaseToolAgent {
       query: context.goal,
       subreddits: subreddits.slice(0, 3), // Start with top 3
       sort: 'relevance',
-      time: 'year' // Last year for recency
+      time: 'year', // Last year for recency
+      excludeUrls: context.seenUrls
     };
   }
 
@@ -94,6 +102,7 @@ Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "se
     }
 
     const results: RedditSearchResult[] = [];
+    const excludeUrls = params.excludeUrls || this.currentContext?.seenUrls;
 
     // Search across specified subreddits
     for (const subreddit of params.subreddits || ['all']) {
@@ -112,7 +121,7 @@ Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "se
           },
           body: JSON.stringify({
             q: query,
-            num: 10
+            num: 10 + (excludeUrls?.size || 0) // Request more to account for filtering
           })
         });
 
@@ -123,9 +132,15 @@ Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "se
 
         const data: any = await response.json();
 
-        // Transform results
+        // Transform results, filtering out already-seen URLs
         for (const item of data.organic || []) {
           if (!item.link?.includes('reddit.com')) continue;
+          
+          // Skip already-seen URLs
+          if (excludeUrls && excludeUrls.has(item.link)) {
+            console.log(`[RedditAgent] Filtering out already-seen URL: ${item.link}`);
+            continue;
+          }
 
           const subredditMatch = item.link.match(/reddit\.com\/r\/([^/]+)/);
           const extractedSubreddit = subredditMatch ? subredditMatch[1] : 'unknown';
@@ -149,6 +164,13 @@ Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "se
       seen.add(r.url);
       return true;
     });
+    
+    // Add new URLs to the shared seen set
+    if (excludeUrls) {
+      for (const r of deduped) {
+        excludeUrls.add(r.url);
+      }
+    }
 
     const maxThreads = 3;
     for (const r of deduped.slice(0, maxThreads)) {
@@ -159,7 +181,7 @@ Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "se
       }
     }
 
-    console.log(`[RedditAgent] Found ${deduped.length} Reddit results`);
+    console.log(`[RedditAgent] Found ${deduped.length} new Reddit results`);
     return deduped;
   }
 

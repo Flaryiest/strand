@@ -21,6 +21,7 @@ interface PlacesSearchParams {
   location?: string;
   radius?: number;
   type?: string;
+  excludePlaceIds?: Set<string>; // Place IDs to exclude from results
 }
 
 export class PlacesAgent extends BaseToolAgent {
@@ -29,12 +30,19 @@ export class PlacesAgent extends BaseToolAgent {
   protected maxIterations = 3;
 
   private defaultRadius = 5000; // 5km
+  
+  // Store context for access in search method
+  private currentContext: AgentContext | null = null;
 
   protected getInitialParams(context: AgentContext): Record<string, any> {
+    // Store context for use in search
+    this.currentContext = context;
+    
     return {
       query: context.goal,
       location: context.location,
-      radius: this.defaultRadius
+      radius: this.defaultRadius,
+      excludePlaceIds: context.seenPlaceIds
     };
   }
 
@@ -76,22 +84,39 @@ export class PlacesAgent extends BaseToolAgent {
       throw new Error(`Google Places API returned status: ${data.status}`);
     }
 
-    // Transform results
-    const places: PlaceResult[] = (data.results || []).map((place: any) => ({
-      name: place.name,
-      address: place.formatted_address,
-      rating: place.rating,
-      priceLevel: place.price_level,
-      types: place.types || [],
-      location: {
-        lat: place.geometry?.location?.lat,
-        lng: place.geometry?.location?.lng
-      },
-      placeId: place.place_id,
-      userRatingsTotal: place.user_ratings_total
-    }));
+    const excludePlaceIds = params.excludePlaceIds || this.currentContext?.seenPlaceIds;
 
-    console.log(`[PlacesAgent] Found ${places.length} places`);
+    // Transform results, filtering out already-seen places
+    const places: PlaceResult[] = (data.results || [])
+      .filter((place: any) => {
+        if (excludePlaceIds && excludePlaceIds.has(place.place_id)) {
+          console.log(`[PlacesAgent] Filtering out already-seen place: ${place.name}`);
+          return false;
+        }
+        return true;
+      })
+      .map((place: any) => ({
+        name: place.name,
+        address: place.formatted_address,
+        rating: place.rating,
+        priceLevel: place.price_level,
+        types: place.types || [],
+        location: {
+          lat: place.geometry?.location?.lat,
+          lng: place.geometry?.location?.lng
+        },
+        placeId: place.place_id,
+        userRatingsTotal: place.user_ratings_total
+      }));
+    
+    // Add new place IDs to the seen set
+    if (excludePlaceIds) {
+      for (const place of places) {
+        excludePlaceIds.add(place.placeId);
+      }
+    }
+
+    console.log(`[PlacesAgent] Found ${places.length} new places (filtered from ${data.results?.length || 0})`);
     return places;
   }
 

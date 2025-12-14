@@ -143,6 +143,13 @@ Available agents:
 2. WEB_AGENT - Web search for articles, reviews, and recommendations
 3. REDDIT_AGENT - Reddit for authentic local opinions and hidden gems
 
+IMPORTANT: Count the distinct items in the user's request:
+- "coffee" = 1 item → search for coffee places
+- "coffee and hiking" = 2 items → search for both coffee places AND hiking spots
+- "romantic dinner and dessert" = 2 items → search for dinner spots AND dessert places
+
+Create separate search goals for each distinct item the user is asking for.
+
 Decide which agents to invoke and what each should search for.
 
 Consider:
@@ -156,6 +163,7 @@ For complex queries (e.g., "romantic date night in SF"), all three add value.
 Respond with ONLY valid JSON (no markdown):
 {
   "reasoning": "Brief explanation of why these agents are needed",
+  "itemCount": number (how many distinct things the user is asking for),
   "agents": [
     {
       "name": "places_agent" | "web_agent" | "reddit_agent",
@@ -261,15 +269,19 @@ AGGREGATED DATA:
 TOP RECOMMENDATIONS (pre-ranked):
 {topRecommendations}
 
-Create a structured itinerary with multiple "slots" (stops/activities). Each slot should have:
-- A primary recommendation (the top pick for that slot)
-- 1-2 alternative options the user can swap to
+CRITICAL: DETERMINE THE NUMBER OF SLOTS BASED ON THE USER'S REQUEST
+Count the distinct activities/items the user is asking for:
+- "I want coffee" = 1 slot (coffee)
+- "coffee and rock climbing" = 2 slots (coffee, rock climbing)
+- "dinner and drinks" = 2 slots (dinner, drinks)
+- "date night" = interpret as ~2-3 slots (dinner, activity/dessert, drinks)
+- "day trip" = interpret as ~3 slots (morning, lunch, afternoon)
+- "things to do this weekend" = 2-3 activity slots
 
-Analyze the user's query to determine appropriate slots:
-- For "date night" → Dinner, Activity/Walk, Drinks
-- For "day trip" → Morning Activity, Lunch, Afternoon Activity  
-- For "dinner" → just one Dinner slot with alternatives
-- For "things to do" → 2-3 Activity slots
+EACH SLOT = EXACTLY 1 PRIMARY RECOMMENDATION
+Do NOT give multiple options per slot. The user wants ONE confident recommendation per item, not a list of 5 coffee shops to choose from.
+
+Alternatives are only for the user to swap if they don't like the primary pick - keep them minimal (1-2 max).
 
 For each place, generate:
 - A compelling "reason" (1-2 sentences why this specific place fits their request)
@@ -289,8 +301,8 @@ Respond with ONLY valid JSON (no markdown, no explanation):
   "slots": [
     {
       "slotId": "slot-{type}",
-      "slotLabel": "Dinner" | "Activity" | "Drinks" | "Lunch" | etc,
-      "slotIcon": "🍝" | "🎭" | "🍸" | etc (single emoji),
+      "slotLabel": "Coffee" | "Dinner" | "Activity" | "Drinks" | "Lunch" | etc,
+      "slotIcon": "☕" | "🍝" | "🎭" | "🍸" | etc (single emoji),
       "timeEstimate": "7:00 PM - 8:30 PM" | null,
       "primary": {
         "id": "place-1",
@@ -310,7 +322,7 @@ Respond with ONLY valid JSON (no markdown, no explanation):
         {
           "id": "place-2",
           "name": "Alternative Place",
-          ... same structure as primary
+          ... same structure as primary (MAX 1-2 alternatives)
         }
       ]
     }

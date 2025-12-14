@@ -52,7 +52,7 @@ interface ChatCompletionChunk {
 export class OpenAIService {
   private readonly apiKey: string;
   private readonly baseUrl = 'https://api.openai.com/v1';
-  private readonly model = 'gpt-5.1';
+  private readonly model = 'gpt-5.2';
 
   constructor() {
     if (!config.openaiApiKey) {
@@ -67,7 +67,7 @@ export class OpenAIService {
   async streamChatCompletion(options: OpenAIStreamOptions): Promise<string> {
     const { messages, transparency, onToken } = options;
 
-    transparency.thinking('Preparing to send request to GPT-5.1...');
+    transparency.thinking('Preparing to send request to GPT-5.2...');
 
     // Convert tool definitions to the new tools format
     const tools = toolRegistry.getDefinitions().map(def => ({

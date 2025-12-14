@@ -26,6 +26,9 @@ export interface AgentContext {
   location?: string;
   budget?: string;
   preferences?: string[];
+  // Track URLs/places already fetched to avoid duplicates in subsequent searches
+  seenUrls?: Set<string>;
+  seenPlaceIds?: Set<string>;
   // Optional transparency emitter (kept loosely typed to avoid dependency cycles)
   transparency?: {
     thinking: (message: string, progress?: number) => Promise<void> | void;
@@ -39,7 +42,9 @@ export abstract class BaseToolAgent {
   abstract name: string;
   abstract description: string;
   protected maxIterations = 3;
-  protected model = 'gpt-4o-mini'; // Use cheaper model for evaluations
+  protected model = 'gpt-5-mini'; // Cost-optimized reasoning model for evaluations
+  protected reasoningEffort: 'none' | 'low' | 'medium' | 'high' | 'xhigh' = 'low';
+  protected verbosity: 'low' | 'medium' | 'high' = 'low';
 
   /**
    * Each agent implements its own search logic
@@ -158,29 +163,53 @@ export abstract class BaseToolAgent {
   }
 
   /**
-   * Call LLM for evaluation
+   * Call LLM for evaluation using OpenAI Responses API (GPT-5.2 compatible)
    */
-  protected async callLLM(prompt: string): Promise<string> {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  protected async callLLM(prompt: string, modelOverride?: string): Promise<string> {
+    const model = modelOverride || this.model;
+    
+    const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.openaiApiKey}`
       },
       body: JSON.stringify({
-        model: this.model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-        max_tokens: 1000
+        model: model,
+        input: prompt,
+        reasoning: {
+          effort: this.reasoningEffort
+        },
+        text: {
+          verbosity: this.verbosity
+        },
+        max_output_tokens: 1500
       })
     });
 
     if (!response.ok) {
-      throw new Error(`LLM API error: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`LLM API error: ${response.status} - ${errorText}`);
     }
 
     const data: any = await response.json();
-    return data.choices[0]?.message?.content || '';
+    
+    // Responses API returns output in a different structure
+    // The text output is in data.output (array of output items)
+    if (data.output && Array.isArray(data.output)) {
+      const textOutput = data.output.find((item: any) => item.type === 'message');
+      if (textOutput?.content) {
+        // Content can be an array of content blocks
+        if (Array.isArray(textOutput.content)) {
+          const textContent = textOutput.content.find((c: any) => c.type === 'output_text');
+          return textContent?.text || '';
+        }
+        return textOutput.content;
+      }
+    }
+    
+    // Fallback for simpler response structure
+    return data.output_text || data.text || '';
   }
 
   /**
