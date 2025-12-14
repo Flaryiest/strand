@@ -186,7 +186,7 @@ export class Orchestrator {
     }
 
     // Phase 4: Synthesize final response with structured itinerary
-    transparency?.deciding('Now let me create your personalized recommendations based on everything I\'ve found...', 'Combining the best insights from reviews, local tips, and verified data.');
+    transparency?.deciding('Alright, I\'ve gathered enough information. Let me think through the best options...', 'Analyzing patterns across sources to find the top recommendations.');
     
     // Generate both structured itinerary and text summary
     const { response, itinerary } = await this.synthesizeWithItinerary(
@@ -572,7 +572,7 @@ export class Orchestrator {
 
       console.log('[Orchestrator] Generated itinerary with', itinerary.slots.length, 'slots');
 
-      transparency?.analyzing('Itinerary generated', {
+      transparency?.analyzing('Here\'s what I\'ve put together for you', {
         slots: itinerary.slots.map(s => ({
           slotLabel: s.slotLabel,
           primary: s.primary?.name,
@@ -607,15 +607,8 @@ export class Orchestrator {
       return "I couldn't find specific recommendations for your query. Could you try being more specific about what you're looking for?";
     }
 
-    let response = "## Top Recommendations\n\n";
-    for (let i = 0; i < Math.min(3, recommendations.length); i++) {
-      const rec = recommendations[i];
-      response += `**${i + 1}. ${rec.name}**\n`;
-      if (rec.address) response += `📍 ${rec.address}\n`;
-      if (rec.rating) response += `⭐ ${rec.rating}/5\n`;
-      response += '\n';
-    }
-    return response;
+    const topRec = recommendations[0];
+    return `I found some interesting options for you. ${topRec.name} stands out with strong reviews. Here's what I've put together:`;
   }
 
   /**

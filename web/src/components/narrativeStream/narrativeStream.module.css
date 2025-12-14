@@ -2,7 +2,7 @@
 .narrativeContainer {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
@@ -20,7 +20,55 @@
 }
 
 .narrativeText + .narrativeText {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Markdown styles */
+.mdH2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 1.5rem 0 0.75rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.mdH3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2a2a2a;
+  margin: 1.25rem 0 0.5rem 0;
+}
+
+.mdP {
+  margin: 0.5rem 0;
+  line-height: 1.7;
+}
+
+.mdStrong {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.mdUl {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.mdLi {
+  margin: 0.25rem 0;
+  line-height: 1.6;
+}
+
+.mdLink {
+  color: #6b7a5f;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(107, 122, 95, 0.3);
+  transition: border-color 0.2s;
+}
+
+.mdLink:hover {
+  border-color: #6b7a5f;
 }
 
 /* Typing cursor */
@@ -47,33 +95,30 @@
 .toolIndicator {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  padding: 0.75rem 1rem;
-  margin: 0.75rem 0;
-  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
-  border-left: 3px solid #8b9a7e;
-  border-radius: 0 8px 8px 0;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  margin: 0.5rem 0;
+  background: #fafafa;
+  border-left: 2px solid #d1d5db;
+  border-radius: 0 6px 6px 0;
   transition: all 0.2s ease;
 }
 
-.toolIndicator:hover {
-  background: linear-gradient(135deg, #f5f5f5 0%, #f0f0f0 100%);
-}
-
 .toolRunning {
-  border-left-color: #d4a574;
+  border-left-color: #9ca3af;
+  background: #f9fafb;
 }
 
-.toolRunning .toolHeader {
-  color: #b8956a;
+.toolRunning .toolLabel {
+  color: #6b7280;
 }
 
 .toolError {
-  border-left-color: #dc2626;
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-left-color: #ef4444;
+  background: #fef2f2;
 }
 
-.toolError .toolHeader {
+.toolError .toolLabel {
   color: #dc2626;
 }
 
@@ -81,15 +126,11 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #6b7a5f;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.toolIcon {
-  font-size: 1rem;
+  letter-spacing: 0.04em;
 }
 
 .toolLabel {
@@ -99,13 +140,13 @@
 .toolSpinner {
   display: flex;
   align-items: center;
-  animation: spin 1.5s linear infinite;
-  opacity: 0.7;
+  animation: spin 1.2s linear infinite;
+  opacity: 0.6;
 }
 
 .toolSpinner svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   stroke: currentColor;
 }
 
@@ -119,29 +160,105 @@
 }
 
 .toolCheck {
-  color: #8b9a7e;
-  font-weight: 600;
-  font-size: 0.875rem;
+  color: #6b7a5f;
+  font-weight: 500;
+  font-size: 0.75rem;
 }
 
 .toolMessage {
   font-size: 0.875rem;
-  color: #4a4a4a;
+  color: #374151;
   line-height: 1.5;
-  padding-left: 1.5rem;
 }
 
 .toolResult {
   font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+/* Detailed tool results */
+.toolDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.toolDetailItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #4b5563;
+}
+
+.detailName {
+  font-weight: 500;
+  color: #374151;
+}
+
+.detailMeta {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.detailLink {
   color: #6b7a5f;
-  padding-left: 1.5rem;
+  text-decoration: none;
+  font-size: 0.8125rem;
+}
+
+.detailLink:hover {
+  text-decoration: underline;
+}
+
+.detailSnippet {
+  display: block;
+  width: 100%;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.125rem;
+}
+
+.detailSubreddit {
+  font-weight: 500;
+  color: #6b7a5f;
+  font-size: 0.75rem;
+}
+
+.detailQuote {
+  display: block;
+  width: 100%;
+  margin: 0.25rem 0 0 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  font-size: 0.8125rem;
   font-style: italic;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.detailQuote cite {
+  display: block;
+  margin-top: 0.25rem;
+  font-style: normal;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.detailInsight {
+  font-size: 0.8125rem;
+  color: #4b5563;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .narrativeContainer {
-    padding: 0 1rem;
+    padding: 0;
   }
 
   .narrativeText {
@@ -150,6 +267,14 @@
   }
 
   .toolIndicator {
-    padding: 0.625rem 0.875rem;
+    padding: 0.75rem 0.875rem;
+  }
+  
+  .mdH2 {
+    font-size: 1.125rem;
+  }
+  
+  .mdH3 {
+    font-size: 1rem;
   }
 }
