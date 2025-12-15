@@ -26,6 +26,7 @@ export default function ChatPage() {
     error,
     conversations,
     isLoadingConversations,
+    activeAssistantMessageId,
     setConversationId,
     setConversationUuid,
     setConversations,
@@ -697,34 +698,42 @@ export default function ChatPage() {
           {(messages.length > 0 || isStreaming) && (
             <div className={styles.conversationView}>
               {/* Display past messages */}
-              {messages.map((msg) => (
-                <div key={msg.id} className={styles.messageBlock}>
-                  {msg.role === 'user' ? (
-                    <div className={styles.userMessage}>
-                      <div className={styles.userLabel}>You</div>
-                      <div className={styles.userMessageContent}>
-                        {msg.content}
+              {messages.map((msg) => {
+                // Skip rendering the message that's currently being streamed
+                // to avoid showing duplicate "Strand" labels
+                if (isStreaming && msg.id === activeAssistantMessageId) {
+                  return null;
+                }
+                
+                return (
+                  <div key={msg.id} className={styles.messageBlock}>
+                    {msg.role === 'user' ? (
+                      <div className={styles.userMessage}>
+                        <div className={styles.userLabel}>You</div>
+                        <div className={styles.userMessageContent}>
+                          {msg.content}
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className={styles.assistantMessage}>
-                      <div className={styles.assistantLabel}>Strand</div>
-                      <NarrativeStream
-                        events={msg.events || []}
-                        isStreaming={false}
-                      />
-                      {msg.itinerary && (
-                        <ItineraryView
-                          itinerary={msg.itinerary}
-                          onRefine={() => {
-                            textareaRef.current?.focus();
-                          }}
+                    ) : (
+                      <div className={styles.assistantMessage}>
+                        <div className={styles.assistantLabel}>Strand</div>
+                        <NarrativeStream
+                          events={msg.events || []}
+                          isStreaming={false}
                         />
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+                        {msg.itinerary && (
+                          <ItineraryView
+                            itinerary={msg.itinerary}
+                            onRefine={() => {
+                              textareaRef.current?.focus();
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
               {/* Active streaming */}
               {isStreaming && (
