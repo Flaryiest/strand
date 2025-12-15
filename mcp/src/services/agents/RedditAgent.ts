@@ -23,7 +23,7 @@ interface RedditSearchParams {
 export class RedditAgent extends BaseToolAgent {
   name = 'reddit_agent';
   description = 'Searches Reddit for authentic local recommendations and discussions';
-  protected maxIterations = 1;
+  protected maxIterations = 2;
 
   // Cache for AI-determined subreddits to avoid repeated calls
   private subredditCache = new Map<string, string[]>();
@@ -144,27 +144,30 @@ Your response for "${simplifiedGoal}" in ${city}:`;
       return [];
     }
 
-    const results: RedditSearchResult[] = [];
     const excludeUrls = params.excludeUrls || this.currentContext?.seenUrls;
     
     // Clean the query - remove any site:reddit.com that LLM might have added
     const cleanQuery = params.query.replace(/\s*site:reddit\.com[^\s]*/gi, '').trim();
 
-    // Search across specified subreddits
-    for (const subreddit of params.subreddits || ['all']) {
-      // Strip r/ prefix if LLM included it
+    // Build all search queries upfront
+    const subreddits = params.subreddits || ['all'];
+    const searchQueries = subreddits.map(subreddit => {
       const cleanSub = subreddit.replace(/^r\//i, '');
-      const query = cleanSub === 'all' 
-        ? `${cleanQuery} site:reddit.com`
-        : `${cleanQuery} site:reddit.com/r/${cleanSub}`;
+      return {
+        subreddit: cleanSub,
+        query: cleanSub === 'all' 
+          ? `${cleanQuery} site:reddit.com`
+          : `${cleanQuery} site:reddit.com/r/${cleanSub}`
+      };
+    });
 
+    // Search all subreddits in PARALLEL
+    const excludeCount = excludeUrls?.size || 0;
+    const requestNum = Math.min(10 + excludeCount, 30);
+    
+    const searchPromises = searchQueries.map(async ({ query, subreddit }) => {
       console.log(`[RedditAgent] Searching: ${query}`);
-
       try {
-        // Calculate num, capping at Serper's max of 30
-        const excludeCount = excludeUrls?.size || 0;
-        const requestNum = Math.min(10 + excludeCount, 30);
-        
         const response = await fetch('https://google.serper.dev/search', {
           method: 'POST',
           headers: {
@@ -179,10 +182,11 @@ Your response for "${simplifiedGoal}" in ${city}:`;
 
         if (!response.ok) {
           console.error(`[RedditAgent] Serper error: ${response.status}`);
-          continue;
+          return [];
         }
 
         const data: any = await response.json();
+        const results: RedditSearchResult[] = [];
 
         // Transform results, filtering out already-seen URLs
         for (const item of data.organic || []) {
@@ -190,7 +194,6 @@ Your response for "${simplifiedGoal}" in ${city}:`;
           
           // Skip already-seen URLs
           if (excludeUrls && excludeUrls.has(item.link)) {
-            console.log(`[RedditAgent] Filtering out already-seen URL: ${item.link}`);
             continue;
           }
 
@@ -204,12 +207,18 @@ Your response for "${simplifiedGoal}" in ${city}:`;
             snippet: item.snippet
           });
         }
+        return results;
       } catch (error) {
         console.error(`[RedditAgent] Error searching ${subreddit}:`, error);
+        return [];
       }
-    }
+    });
 
-    // Dedupe by URL and then fetch thread JSON for top N threads.
+    // Wait for all searches to complete in parallel
+    const allResults = await Promise.all(searchPromises);
+    const results = allResults.flat();
+
+    // Dedupe by URL
     const seen = new Set<string>();
     const deduped = results.filter(r => {
       if (seen.has(r.url)) return false;
@@ -224,14 +233,16 @@ Your response for "${simplifiedGoal}" in ${city}:`;
       }
     }
 
-    const maxThreads = 3;
-    for (const r of deduped.slice(0, maxThreads)) {
+    // Fetch thread content in PARALLEL
+    const maxThreads = 5;
+    const threadsToFetch = deduped.slice(0, maxThreads);
+    await Promise.all(threadsToFetch.map(async (r) => {
       try {
         r.thread = await fetchRedditThread(r.url, { maxComments: 25 });
       } catch (e) {
         r.threadError = e instanceof Error ? e.message : 'Unknown error';
       }
-    }
+    }));
 
     console.log(`[RedditAgent] Found ${deduped.length} new Reddit results`);
     return deduped;

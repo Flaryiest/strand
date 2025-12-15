@@ -27,7 +27,7 @@ interface PlacesSearchParams {
 export class PlacesAgent extends BaseToolAgent {
   name = 'places_agent';
   description = 'Searches Google Places API for real business data including addresses, ratings, and coordinates';
-  protected maxIterations = 1;
+  protected maxIterations = 2;
 
   private defaultRadius = 5000; // 5km
   

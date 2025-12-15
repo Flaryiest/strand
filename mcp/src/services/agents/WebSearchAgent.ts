@@ -27,7 +27,7 @@ interface WebSearchParams {
 export class WebSearchAgent extends BaseToolAgent {
   name = 'web_agent';
   description = 'Searches the web for articles, reviews, and recommendations using Serper API';
-  protected maxIterations = 1;
+  protected maxIterations = 2;
   
   // Store context for access in search method
   private currentContext: AgentContext | null = null;
@@ -152,8 +152,10 @@ export class WebSearchAgent extends BaseToolAgent {
       const maxPages = Math.min(Math.max(params.maxPages ?? 3, 0), 5);
       const maxChars = Math.min(Math.max(params.maxChars ?? 6000, 500), 12000);
 
+      // Fetch page content in PARALLEL for speed
       if (fetchContent && maxPages > 0 && results.length > 0) {
-        for (const r of results.slice(0, maxPages)) {
+        const pagesToFetch = results.slice(0, maxPages);
+        await Promise.all(pagesToFetch.map(async (r) => {
           try {
             const html = await fetchText(r.url, { timeoutMs: 12_000, maxBytes: 2_000_000 });
             r.content = extractReadableContentFromHtml(r.url, html, params.query, {
@@ -163,7 +165,7 @@ export class WebSearchAgent extends BaseToolAgent {
           } catch (e) {
             r.contentError = e instanceof Error ? e.message : 'Unknown error';
           }
-        }
+        }));
       }
 
       console.log(`[WebSearchAgent] Found ${results.length} new web results (filtered from ${data.organic?.length || 0})`);
