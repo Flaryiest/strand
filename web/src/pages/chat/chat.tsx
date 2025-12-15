@@ -61,11 +61,15 @@ export default function ChatPage() {
   const runLastIdStorageKey = (runId: string) =>
     `strand:chatRun:${runId}:lastId`;
 
+  // Track the runId that the current EventSource is listening to
+  const activeRunIdRef = useRef<string | null>(null);
+
   const stopEventSource = () => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+    activeRunIdRef.current = null;
   };
 
   const isEventSourceActive = () => {
@@ -81,6 +85,9 @@ export default function ChatPage() {
   ) => {
     stopEventSource();
 
+    // Track which run this EventSource is for
+    activeRunIdRef.current = runId;
+
     // If replaying from start (e.g., page refresh recovery), ignore sessionStorage
     // and fetch all events from the beginning
     const afterId = replayFromStart
@@ -92,6 +99,13 @@ export default function ChatPage() {
     eventSourceRef.current = es;
 
     es.onmessage = (evt) => {
+      // Ignore events if this EventSource is no longer for the active run
+      // This prevents stale events from a previous run polluting the current chat
+      if (activeRunIdRef.current !== runId) {
+        console.log(`[EventSource] Ignoring event for stale run ${runId}, active run is ${activeRunIdRef.current}`);
+        return;
+      }
+
       try {
         const eventData = JSON.parse(evt.data);
         if (evt.lastEventId) {
