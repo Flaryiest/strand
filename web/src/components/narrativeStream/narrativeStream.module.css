@@ -17,6 +17,24 @@
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   letter-spacing: -0.01em;
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+/* Skip animation for historical content */
+.narrativeText.noAnimation,
+.toolIndicator.noAnimation {
+  animation: none;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .narrativeText + .narrativeText {
@@ -108,6 +126,7 @@
   border-left: 2px solid #d1d5db;
   border-radius: 0 6px 6px 0;
   transition: all 0.2s ease;
+  animation: fadeSlideIn 0.3s ease-out;
 }
 
 .toolIndicator.toolExpanded {

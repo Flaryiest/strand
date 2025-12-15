@@ -170,11 +170,17 @@ export class PlacesAgent extends BaseToolAgent {
         };
       }>(response);
 
+      // Map extracted results back to original data to preserve all fields (especially photoUrl)
+      const extractedWithFullData = (evaluation.extracted || []).map((extracted: any) => {
+        const original = results.find(r => r.placeId === extracted.placeId);
+        return original || extracted;
+      });
+
       return {
         sufficient: evaluation.sufficient,
         score: evaluation.score,
         gaps: evaluation.gaps || [],
-        extracted: evaluation.extracted || results.slice(0, 10),
+        extracted: extractedWithFullData.length > 0 ? extractedWithFullData : results.slice(0, 10),
         refinement: evaluation.refinement
       };
     } catch (error) {

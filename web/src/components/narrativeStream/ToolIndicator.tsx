@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './narrativeStream.module.css';
 
 export interface ToolDetailedResult {
@@ -21,6 +21,8 @@ interface ToolIndicatorProps {
   message?: string;
   resultSummary?: string;
   detailedResults?: ToolDetailedResult[];
+  onAnimationComplete?: () => void;
+  skipAnimation?: boolean;
 }
 
 const toolLabels: Record<string, string> = {
@@ -38,15 +40,37 @@ export default function ToolIndicator({
   status,
   message,
   resultSummary,
-  detailedResults
+  detailedResults,
+  onAnimationComplete,
+  skipAnimation = false
 }: ToolIndicatorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const label = toolLabels[toolName] || toolName;
   const hasDetails = detailedResults && detailedResults.length > 0;
 
+  // Call onAnimationComplete when the tool finishes its animation
+  useEffect(() => {
+    if (onAnimationComplete) {
+      if (skipAnimation) {
+        // Skip animation - call complete immediately
+        onAnimationComplete();
+        return;
+      }
+      
+      if (status === 'complete' || status === 'error') {
+        // Tool finished, give the completion animation time to play
+        const timer = setTimeout(() => {
+          onAnimationComplete();
+        }, 500); // Wait for completion animation
+        return () => clearTimeout(timer);
+      }
+      // If still running, don't call onAnimationComplete yet - wait for status change
+    }
+  }, [status, onAnimationComplete, skipAnimation]);
+
   return (
     <div
-      className={`${styles.toolIndicator} ${status === 'running' ? styles.toolRunning : ''} ${status === 'error' ? styles.toolError : ''} ${isExpanded ? styles.toolExpanded : ''}`}
+      className={`${styles.toolIndicator} ${status === 'running' ? styles.toolRunning : ''} ${status === 'error' ? styles.toolError : ''} ${isExpanded ? styles.toolExpanded : ''} ${skipAnimation ? styles.noAnimation : ''}`}
     >
       <div 
         className={styles.toolHeader}

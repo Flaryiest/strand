@@ -600,7 +600,12 @@ export class Orchestrator {
         generatedAt: new Date().toISOString(),
         slots: parsedItinerary.slots.map(slot => ({
           ...slot,
-          selectedIndex: 0 // Default to primary selection
+          selectedIndex: 0, // Default to primary selection
+          // Ensure photoUrl is preserved from original places data
+          primary: this.enrichPlaceWithPhoto(slot.primary, aggregatedData.placesHighlights),
+          alternatives: (slot.alternatives || []).map(alt => 
+            this.enrichPlaceWithPhoto(alt, aggregatedData.placesHighlights)
+          )
         }))
       };
 
@@ -634,6 +639,40 @@ export class Orchestrator {
     }
 
     return { response, itinerary };
+  }
+
+  /**
+   * Enrich a place recommendation with photoUrl from original places data
+   * This ensures photoUrl is preserved even if the LLM doesn't copy it correctly
+   */
+  private enrichPlaceWithPhoto(place: PlaceRecommendation, placesHighlights: any[]): PlaceRecommendation {
+    if (!place) return place;
+    
+    // If place already has a valid photoUrl, keep it
+    if (place.photoUrl && place.photoUrl.startsWith('http')) {
+      return place;
+    }
+    
+    // Try to find matching place in original data by name (case-insensitive partial match)
+    const normalizedName = place.name?.toLowerCase().trim();
+    const matchingPlace = placesHighlights.find(p => {
+      const pName = p.name?.toLowerCase().trim();
+      return pName === normalizedName || 
+             pName?.includes(normalizedName) || 
+             normalizedName?.includes(pName);
+    });
+    
+    if (matchingPlace?.photoUrl) {
+      console.log(`[Orchestrator] Enriched "${place.name}" with photoUrl from places data`);
+      return {
+        ...place,
+        photoUrl: matchingPlace.photoUrl,
+        // Also ensure location is preserved
+        location: place.location || matchingPlace.location
+      };
+    }
+    
+    return place;
   }
 
   private generateFallbackResponse(recommendations: any[]): string {

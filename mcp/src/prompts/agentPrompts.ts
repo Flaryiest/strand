@@ -30,7 +30,7 @@ Respond with ONLY valid JSON (no markdown):
   "sufficient": boolean,
   "score": 1-10,
   "gaps": ["list of what's missing or could be better"],
-  "extracted": [top 10 most relevant results with name, address, rating, priceLevel, placeId],
+  "extracted": [top 10 most relevant results with name, address, rating, priceLevel, placeId, photoUrl, location, types, userRatingsTotal - preserve ALL fields from the input],
   "refinement": {
     "action": "expand_radius" | "change_type" | "modify_query" | null,
     "params": { "radius": number, "type": string, "query": string }
@@ -317,11 +317,12 @@ Respond with ONLY valid JSON (no markdown, no explanation):
         "reviewCount": 1234,
         "priceLevel": 2,
         "types": ["restaurant", "italian"],
-        "photoUrl": null,
+        "photoUrl": "https://maps.googleapis.com/... (COPY from placesHighlights)",
         "googleMapsUrl": "https://maps.google.com/?q=Place+Name+City",
         "reason": "Why this place is perfect for their request",
         "highlights": ["Feature 1", "Feature 2", "Feature 3"],
-        "bestFor": "Perfect for romantic dinner"
+        "bestFor": "Perfect for romantic dinner",
+        "location": { "lat": 37.7749, "lng": -122.4194 }
       },
       "alternatives": [
         {

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { StreamEvent } from '@/stores/chat';
 import ToolIndicator, { ToolDetailedResult } from './ToolIndicator';
@@ -17,6 +17,7 @@ interface ParsedSegment {
   toolMessage?: string;
   toolResult?: string;
   detailedResults?: ToolDetailedResult[];
+  id: string; // Unique ID for tracking
 }
 
 // Typewriter text component
@@ -24,16 +25,20 @@ function TypewriterText({
   text, 
   isLast, 
   isStreaming,
+  skipAnimation = false,
   onComplete 
 }: { 
   text: string; 
   isLast: boolean;
   isStreaming: boolean;
+  skipAnimation?: boolean;
   onComplete?: () => void;
 }) {
-  const [displayedLength, setDisplayedLength] = useState(0);
+  // If skipping animation, show full text immediately
+  const [displayedLength, setDisplayedLength] = useState(skipAnimation ? text.length : 0);
   const textRef = useRef(text);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasCalledComplete = useRef(false);
 
   // Track if we've caught up to current text
   const isCaughtUp = displayedLength >= text.length;
@@ -41,12 +46,26 @@ function TypewriterText({
   useEffect(() => {
     // When text changes, update our ref but keep displayed position
     textRef.current = text;
-  }, [text]);
+    // If skipping animation and text changes, show full text
+    if (skipAnimation) {
+      setDisplayedLength(text.length);
+    }
+  }, [text, skipAnimation]);
 
   useEffect(() => {
-    // Don't run if we've caught up
-    if (displayedLength >= textRef.current.length) {
+    // If skipping animation, call complete immediately (once)
+    if (skipAnimation && !hasCalledComplete.current) {
+      hasCalledComplete.current = true;
       onComplete?.();
+      return;
+    }
+    
+    // Don't run typewriter if skipping or already caught up
+    if (skipAnimation || displayedLength >= textRef.current.length) {
+      if (!hasCalledComplete.current) {
+        hasCalledComplete.current = true;
+        onComplete?.();
+      }
       return;
     }
 
@@ -56,7 +75,10 @@ function TypewriterText({
         const nextLength = Math.min(prev + 2, targetLength); // 2 chars at a time
         if (nextLength >= targetLength) {
           if (intervalRef.current) clearInterval(intervalRef.current);
-          onComplete?.();
+          if (!hasCalledComplete.current) {
+            hasCalledComplete.current = true;
+            onComplete?.();
+          }
         }
         return nextLength;
       });
@@ -65,12 +87,12 @@ function TypewriterText({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [text, displayedLength, onComplete]);
+  }, [text, displayedLength, onComplete, skipAnimation]);
 
-  const displayedText = text.slice(0, displayedLength);
+  const displayedText = skipAnimation ? text : text.slice(0, displayedLength);
   
-  // Show cursor only on the last segment while streaming and not caught up
-  const showCursor = isLast && isStreaming && !isCaughtUp;
+  // Show cursor only on the last segment while streaming and not caught up (never for historical)
+  const showCursor = isLast && isStreaming && !isCaughtUp && !skipAnimation;
   
   // For inline cursor: append a special marker that we'll replace with the cursor
   // This ensures cursor appears at the end of text, not on a new line
@@ -78,7 +100,7 @@ function TypewriterText({
   const textWithCursor = showCursor ? displayedText + CURSOR_MARKER : displayedText;
 
   return (
-    <div className={styles.narrativeText}>
+    <div className={`${styles.narrativeText} ${skipAnimation ? styles.noAnimation : ''}`}>
       <ReactMarkdown
         components={{
           h2: ({ children }) => <h2 className={styles.mdH2}>{children}</h2>,
@@ -125,11 +147,21 @@ export default function NarrativeStream({
   events,
   isStreaming = false
 }: NarrativeStreamProps) {
+  // For historical content (not streaming), skip all animations
+  const skipAnimations = !isStreaming;
+  
+  // Track which segment index we're currently displaying
+  // If skipping animations, show all segments immediately
+  const [visibleCount, setVisibleCount] = useState(skipAnimations ? Infinity : 0);
+  const [currentSegmentComplete, setCurrentSegmentComplete] = useState(true);
+  const prevSegmentsLengthRef = useRef(0);
+
   // Parse events into renderable segments
   const segments = useMemo(() => {
     const result: ParsedSegment[] = [];
     let currentText = '';
     const toolStates = new Map<string, ParsedSegment>();
+    let segmentIndex = 0;
 
     for (const event of events) {
       switch (event.type) {
@@ -148,7 +180,7 @@ export default function NarrativeStream({
         case 'action':
           // Flush any accumulated text
           if (currentText.trim()) {
-            result.push({ type: 'text', content: currentText.trim() });
+            result.push({ type: 'text', content: currentText.trim(), id: `text-${segmentIndex++}` });
             currentText = '';
           }
           
@@ -158,7 +190,8 @@ export default function NarrativeStream({
             type: 'tool',
             toolName: actionName,
             toolStatus: 'running',
-            toolMessage: event.data.message
+            toolMessage: event.data.message,
+            id: `tool-${actionName}-${segmentIndex++}`
           };
           toolStates.set(actionName, toolSegment);
           result.push(toolSegment);
@@ -207,7 +240,7 @@ export default function NarrativeStream({
         case 'error':
           // Show error inline
           if (currentText.trim()) {
-            result.push({ type: 'text', content: currentText.trim() });
+            result.push({ type: 'text', content: currentText.trim(), id: `text-${segmentIndex++}` });
             currentText = '';
           }
           // Find running tool and mark as error
@@ -224,31 +257,84 @@ export default function NarrativeStream({
 
     // Flush remaining text
     if (currentText.trim()) {
-      result.push({ type: 'text', content: currentText.trim() });
+      result.push({ type: 'text', content: currentText.trim(), id: `text-${segmentIndex++}` });
     }
 
     return result;
   }, [events]);
 
+  // Handle sequential display - advance to next segment when current one completes
+  const handleSegmentComplete = useCallback(() => {
+    setCurrentSegmentComplete(true);
+  }, []);
+
+  // Effect to advance visible count when current segment completes
+  // Skip this effect entirely for historical content
+  useEffect(() => {
+    if (skipAnimations) return; // Don't use sequential display for historical
+    
+    if (currentSegmentComplete && visibleCount < segments.length) {
+      // Small delay before showing next segment for smooth transitions
+      const timer = setTimeout(() => {
+        setVisibleCount(prev => prev + 1);
+        setCurrentSegmentComplete(false);
+      }, 150); // 150ms pause between segments
+      return () => clearTimeout(timer);
+    }
+  }, [currentSegmentComplete, visibleCount, segments.length, skipAnimations]);
+
+  // When new segments arrive, ensure we start processing if idle
+  useEffect(() => {
+    if (skipAnimations) return; // Don't need this for historical
+    
+    if (segments.length > prevSegmentsLengthRef.current) {
+      // New segments arrived
+      if (visibleCount === prevSegmentsLengthRef.current && currentSegmentComplete) {
+        // We were at the end, start showing new content
+        setCurrentSegmentComplete(true);
+      }
+      prevSegmentsLengthRef.current = segments.length;
+    }
+  }, [segments.length, visibleCount, currentSegmentComplete, skipAnimations]);
+
+  // Reset when events are cleared (new conversation) or when streaming starts
+  useEffect(() => {
+    if (events.length === 0) {
+      setVisibleCount(skipAnimations ? Infinity : 0);
+      setCurrentSegmentComplete(true);
+      prevSegmentsLengthRef.current = 0;
+    }
+  }, [events.length, skipAnimations]);
+
   if (segments.length === 0 && !isStreaming) {
     return null;
   }
 
-  // Find the index of the last text segment for cursor placement
-  const lastTextIndex = segments.reduce((last, seg, idx) => 
+  // For historical content, show all segments; for streaming, show up to visibleCount
+  const visibleSegments = skipAnimations ? segments : segments.slice(0, visibleCount);
+  
+  // Find the index of the last text segment in visible segments for cursor placement
+  const lastTextIndex = visibleSegments.reduce((last, seg, idx) => 
     seg.type === 'text' ? idx : last, -1);
+
+  // Check if we're waiting for more content (only relevant during streaming)
+  const isWaitingForMore = !skipAnimations && visibleCount >= segments.length && isStreaming;
 
   return (
     <div className={styles.narrativeContainer}>
-      {segments.map((segment, index) => {
+      {visibleSegments.map((segment, index) => {
+        const isLastVisible = !skipAnimations && index === visibleCount - 1;
+        
         if (segment.type === 'text') {
           const isLastText = index === lastTextIndex;
           return (
             <TypewriterText
-              key={index}
+              key={segment.id}
               text={segment.content || ''}
               isLast={isLastText}
               isStreaming={isStreaming}
+              skipAnimation={skipAnimations}
+              onComplete={isLastVisible ? handleSegmentComplete : undefined}
             />
           );
         }
@@ -256,12 +342,14 @@ export default function NarrativeStream({
         if (segment.type === 'tool') {
           return (
             <ToolIndicator
-              key={`tool-${index}`}
+              key={segment.id}
               toolName={segment.toolName || 'unknown'}
               status={segment.toolStatus || 'running'}
               message={segment.toolMessage}
               resultSummary={segment.toolResult}
               detailedResults={segment.detailedResults}
+              onAnimationComplete={isLastVisible ? handleSegmentComplete : undefined}
+              skipAnimation={skipAnimations}
             />
           );
         }
@@ -269,8 +357,15 @@ export default function NarrativeStream({
         return null;
       })}
 
-      {/* Show thinking cursor when streaming but no text segments yet, or between tool and next text */}
-      {isStreaming && segments.length === 0 && (
+      {/* Show thinking cursor when streaming but no visible segments yet */}
+      {isStreaming && visibleSegments.length === 0 && (
+        <div className={styles.thinkingCursor}>
+          <span className={styles.cursor} />
+        </div>
+      )}
+      
+      {/* Show waiting indicator between segments */}
+      {isWaitingForMore && visibleSegments.length > 0 && (
         <div className={styles.thinkingCursor}>
           <span className={styles.cursor} />
         </div>
