@@ -304,11 +304,18 @@ export class Orchestrator {
         const result = await agent.execute(agentContext);
 
         const summary = this.summarizeAgentResult(plan.name, result?.results || []);
+        const count = result.results.length;
         
         const resultMessages: Record<string, string> = {
-          'places_agent': `Found ${result.results.length} places with ratings and reviews`,
-          'web_agent': `Found ${result.results.length} articles and reviews to analyze`,
-          'reddit_agent': `Found ${result.results.length} Reddit discussions with local insights`
+          'places_agent': count === 0 
+            ? 'No new places were found'
+            : `Found ${count} places with ratings and reviews`,
+          'web_agent': count === 0
+            ? 'No new articles were found'
+            : `Found ${count} articles and reviews to analyze`,
+          'reddit_agent': count === 0
+            ? 'No new discussions were found'
+            : `Found ${count} Reddit discussions with local insights`
         };
 
         transparency?.emitStep({
@@ -379,14 +386,31 @@ export class Orchestrator {
           .filter(Boolean);
         const uniqueSubs = Array.from(new Set(subreddits)).slice(0, 8);
         const threadsFetched = results.filter((r: any) => r?.thread?.comments?.length).length;
+        
+        // Include thread URL with each sample comment for linking
         const sampleComments = results
-          .flatMap((r: any) => (r?.thread?.comments || []).slice(0, 1))
+          .filter((r: any) => r?.thread?.comments?.length > 0)
           .slice(0, 3)
-          .map((c: any) => ({ author: c?.author, score: c?.score, body: c?.body?.slice(0, 200) }));
+          .map((r: any) => {
+            const comment = r.thread.comments[0];
+            return {
+              author: comment?.author,
+              score: comment?.score,
+              body: comment?.body?.slice(0, 200),
+              threadUrl: r.url,
+              threadTitle: r.thread?.title || r.title
+            };
+          });
         return {
           subreddits: uniqueSubs,
           threadsFetched,
-          sampleComments
+          sampleComments,
+          // Also include thread URLs directly
+          threadUrls: results.slice(0, 5).map((r: any) => ({
+            url: r.url,
+            title: r.thread?.title || r.title,
+            subreddit: r.thread?.subreddit || r.subreddit
+          })).filter((t: any) => t.url)
         };
       }
     } catch {

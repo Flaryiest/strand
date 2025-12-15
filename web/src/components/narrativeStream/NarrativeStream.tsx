@@ -321,24 +321,30 @@ function extractDetailedResults(results: any, toolName?: string): ToolDetailedRe
   
   // Handle reddit agent results
   if (toolName === 'reddit_agent' && summary) {
-    // Show subreddits with thread info
-    if (summary.subreddits?.length > 0) {
-      for (const sub of summary.subreddits.slice(0, 4)) {
-        detailed.push({
-          type: 'reddit',
-          subreddit: sub
-        });
+    // Show threads with links
+    if (summary.threadUrls?.length > 0) {
+      for (const thread of summary.threadUrls.slice(0, 4)) {
+        if (thread?.url) {
+          detailed.push({
+            type: 'reddit',
+            url: thread.url,
+            title: thread.title,
+            subreddit: thread.subreddit
+          });
+        }
       }
     }
-    // Show sample comments with more context
+    // Show sample comments with thread links
     if (summary.sampleComments?.length > 0) {
-      for (const comment of summary.sampleComments.slice(0, 4)) {
+      for (const comment of summary.sampleComments.slice(0, 3)) {
         if (comment?.body) {
           detailed.push({
             type: 'reddit',
             quote: comment.body.slice(0, 200) + (comment.body.length > 200 ? '...' : ''),
             author: comment.author,
-            score: comment.score
+            score: comment.score,
+            url: comment.threadUrl,
+            title: comment.threadTitle
           });
         }
       }
