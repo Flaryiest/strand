@@ -94,6 +94,21 @@ function TypewriterText({
   // Show cursor only on the last segment while streaming and not caught up (never for historical)
   const showCursor = isLast && isStreaming && !isCaughtUp && !skipAnimation;
   
+  // If there's no text yet but we should show cursor, render just the cursor without ReactMarkdown
+  // This avoids empty <p> tags with margins pushing the cursor down
+  if (!displayedText && showCursor) {
+    return (
+      <div className={`${styles.narrativeText} ${skipAnimation ? styles.noAnimation : ''}`}>
+        <span className={styles.cursor} />
+      </div>
+    );
+  }
+  
+  // If there's no text and no cursor, render nothing
+  if (!displayedText && !showCursor) {
+    return null;
+  }
+  
   // For inline cursor: append a special marker that we'll replace with the cursor
   // This ensures cursor appears at the end of text, not on a new line
   const CURSOR_MARKER = '█CURSOR█';
