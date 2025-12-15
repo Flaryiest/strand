@@ -59,23 +59,57 @@ export class WebSearchAgent extends BaseToolAgent {
   
   /**
    * Simplify complex AI-generated queries to work with Serper's limitations
+   * Called during initial param setup
    */
   private simplifyQuery(query: string): string {
-    // Remove instructional phrases that make queries too long
-    let simplified = query
-      .replace(/^(find|search for|look for|get|collect|gather|locate|discover)\s+/i, '')
-      .replace(/\s*(to capture|for|about|regarding|with|including)\s+.*$/i, '')
-      .replace(/\s*(recommendations?|suggestions?|options?|places?|spots?)\s*$/i, '')
-      .replace(/\s+OR\s+/g, ' ')
-      .replace(/"[^"]+"/g, match => match.replace(/"/g, '')) // Remove quotes
-      .trim();
+    return this.sanitizeSerperQuery(query);
+  }
+  
+  /**
+   * Robust query sanitization - called RIGHT BEFORE every Serper API call
+   * Handles all edge cases: LLM-generated instructions, verbose refinements, etc.
+   */
+  private sanitizeSerperQuery(query: string): string {
+    let q = query;
     
-    // If still too long, take first 60 chars and trim to last complete word
-    if (simplified.length > 60) {
-      simplified = simplified.substring(0, 60).replace(/\s+\S*$/, '');
+    // 1. Remove instructional prefixes (expanded list)
+    q = q.replace(/^(search|find|look for|get|collect|gather|locate|discover|retrieve|check|browse|explore)\s+(for\s+)?/i, '');
+    
+    // 2. Remove verbose suffixes
+    q = q.replace(/\s+(to capture|for capturing|about|regarding|with|including|official site|official website|menu|photos|hours)\s+.*$/i, '');
+    q = q.replace(/\s+(recommendations?|suggestions?|options?|places?|spots?|reviews?)\s*$/i, '');
+    
+    // 3. Limit quoted phrases to max 2
+    const quotes = q.match(/"[^"]+"/g) || [];
+    if (quotes.length > 2) {
+      let kept = 0;
+      q = q.replace(/"[^"]+"/g, (match) => {
+        if (kept < 2) { kept++; return match; }
+        return match.replace(/"/g, ''); // Remove quotes, keep words
+      });
     }
     
-    return simplified || query.substring(0, 40);
+    // 4. Remove excessive OR operators
+    q = q.replace(/\s+OR\s+/gi, ' ');
+    
+    // 5. Remove postal codes (they cause issues)
+    q = q.replace(/\b[A-Z]\d[A-Z]\s*\d[A-Z]\d\b/gi, '');
+    
+    // 6. Clean up whitespace
+    q = q.replace(/\s+/g, ' ').trim();
+    
+    // 7. Hard cap at 80 chars for web (slightly longer than Reddit)
+    if (q.length > 80) {
+      q = q.substring(0, 80).replace(/\s+\S*$/, '').trim();
+    }
+    
+    // 8. Fallback: if still empty or too short, extract key nouns
+    if (!q || q.length < 3) {
+      const words = query.match(/\b[a-z]{4,}\b/gi) || [];
+      q = words.slice(0, 4).join(' ') || 'recommendations';
+    }
+    
+    return q;
   }
   
   /**
@@ -97,7 +131,9 @@ export class WebSearchAgent extends BaseToolAgent {
       return [];
     }
 
-    console.log(`[WebSearchAgent] Searching: ${params.query}`);
+    // ROBUST: Sanitize query right before API call (catches refinements too)
+    const sanitizedQuery = this.sanitizeSerperQuery(params.query);
+    console.log(`[WebSearchAgent] Sanitized query: "${params.query.substring(0, 50)}..." → "${sanitizedQuery}"`);
 
     try {
       // Calculate num, capping at Serper's max of 30
@@ -111,7 +147,7 @@ export class WebSearchAgent extends BaseToolAgent {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          q: params.query,
+          q: sanitizedQuery,
           num: requestNum
         })
       });

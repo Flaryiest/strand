@@ -52,21 +52,64 @@ export class RedditAgent extends BaseToolAgent {
   
   /**
    * Simplify complex AI-generated queries to work with Serper's limitations
+   * Called during initial param setup
    */
   private simplifyQuery(query: string): string {
-    // Remove instructional phrases that make queries too long
-    let simplified = query
-      .replace(/^(find|search for|look for|get|collect|gather|locate|discover)\s+/i, '')
-      .replace(/\s*(to capture|for capturing|about|regarding|with|including|community opinions|threads|informal consensus|tips)\s+.*$/i, '')
-      .replace(/\s*(recommendations?|suggestions?|options?)\s*$/i, '')
-      .trim();
+    return this.sanitizeSerperQuery(query);
+  }
+  
+  /**
+   * Robust query sanitization - called RIGHT BEFORE every Serper API call
+   * Handles all edge cases: LLM-generated instructions, verbose refinements, etc.
+   */
+  private sanitizeSerperQuery(query: string): string {
+    let q = query;
     
-    // If still too long, take first 50 chars and trim to last complete word
-    if (simplified.length > 50) {
-      simplified = simplified.substring(0, 50).replace(/\s+\S*$/, '');
+    // 1. Remove site:reddit.com (we add it ourselves)
+    q = q.replace(/\s*site:reddit\.com[^\s]*/gi, '');
+    
+    // 2. Remove instructional prefixes (expanded list)
+    q = q.replace(/^(search|find|look for|get|collect|gather|locate|discover|retrieve|check|browse|explore)\s+(for\s+)?/i, '');
+    q = q.replace(/^(local forums|reddit|r\/\w+)\s+(for\s+)?/i, '');
+    q = q.replace(/^\(r\/[^)]+\)\s*/gi, ''); // Remove (r/subreddit) prefix
+    
+    // 3. Remove parenthetical content like (r/Calgary)
+    q = q.replace(/\([^)]*\)/g, ' ');
+    
+    // 4. Remove verbose suffixes
+    q = q.replace(/\s+(to capture|for capturing|about|regarding|with|including|community opinions|threads|informal consensus|tips|specifically mentioning|at these shops).*$/i, '');
+    q = q.replace(/\s+(recommendations?|suggestions?|options?|reviews?)\s*$/i, '');
+    
+    // 5. Limit quoted phrases to max 2, remove the rest
+    const quotes = q.match(/"[^"]+"/g) || [];
+    if (quotes.length > 2) {
+      // Keep only first 2 quoted phrases
+      let kept = 0;
+      q = q.replace(/"[^"]+"/g, (match) => {
+        if (kept < 2) { kept++; return match; }
+        return match.replace(/"/g, ''); // Remove quotes, keep words
+      });
     }
     
-    return simplified || query.substring(0, 30);
+    // 6. Remove excessive OR operators
+    q = q.replace(/\s+OR\s+/gi, ' ');
+    
+    // 7. Clean up whitespace
+    q = q.replace(/\s+/g, ' ').trim();
+    
+    // 8. Hard cap at 60 chars, trim to last complete word
+    if (q.length > 60) {
+      q = q.substring(0, 60).replace(/\s+\S*$/, '').trim();
+    }
+    
+    // 9. Fallback: if still empty or too short, extract key nouns
+    if (!q || q.length < 3) {
+      // Try to extract meaningful words from original
+      const words = query.match(/\b[a-z]{4,}\b/gi) || [];
+      q = words.slice(0, 3).join(' ') || 'recommendations';
+    }
+    
+    return q;
   }
 
   /**
@@ -146,8 +189,9 @@ Your response for "${simplifiedGoal}" in ${city}:`;
 
     const excludeUrls = params.excludeUrls || this.currentContext?.seenUrls;
     
-    // Clean the query - remove any site:reddit.com that LLM might have added
-    const cleanQuery = params.query.replace(/\s*site:reddit\.com[^\s]*/gi, '').trim();
+    // ROBUST: Sanitize query right before API call (catches refinements too)
+    const cleanQuery = this.sanitizeSerperQuery(params.query);
+    console.log(`[RedditAgent] Sanitized query: "${params.query}" → "${cleanQuery}"`);
 
     // Build all search queries upfront
     const subreddits = params.subreddits || ['all'];
