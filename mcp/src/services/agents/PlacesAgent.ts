@@ -85,14 +85,29 @@ export class PlacesAgent extends BaseToolAgent {
     }
 
     const excludePlaceIds = params.excludePlaceIds || this.currentContext?.seenPlaceIds;
+    
+    // Normalize the user's location for comparison (to exclude it from results)
+    const userLocationNormalized = params.location?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
 
-    // Transform results, filtering out already-seen places
+    // Transform results, filtering out already-seen places and user's own address
     const places: PlaceResult[] = (data.results || [])
       .filter((place: any) => {
         if (excludePlaceIds && excludePlaceIds.has(place.place_id)) {
           console.log(`[PlacesAgent] Filtering out already-seen place: ${place.name}`);
           return false;
         }
+        
+        // Filter out user's own address
+        if (userLocationNormalized && place.formatted_address) {
+          const placeAddressNormalized = place.formatted_address.toLowerCase().replace(/[^a-z0-9]/g, '');
+          // Check if the place address contains significant parts of user's location
+          if (placeAddressNormalized.includes(userLocationNormalized) || 
+              userLocationNormalized.includes(placeAddressNormalized.slice(0, 20))) {
+            console.log(`[PlacesAgent] Filtering out user's location: ${place.name} at ${place.formatted_address}`);
+            return false;
+          }
+        }
+        
         return true;
       })
       .map((place: any) => ({

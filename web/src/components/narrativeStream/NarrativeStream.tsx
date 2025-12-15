@@ -71,6 +71,11 @@ function TypewriterText({
   
   // Show cursor only on the last segment while streaming and not caught up
   const showCursor = isLast && isStreaming && !isCaughtUp;
+  
+  // For inline cursor: append a special marker that we'll replace with the cursor
+  // This ensures cursor appears at the end of text, not on a new line
+  const CURSOR_MARKER = '█CURSOR█';
+  const textWithCursor = showCursor ? displayedText + CURSOR_MARKER : displayedText;
 
   return (
     <div className={styles.narrativeText}>
@@ -78,7 +83,20 @@ function TypewriterText({
         components={{
           h2: ({ children }) => <h2 className={styles.mdH2}>{children}</h2>,
           h3: ({ children }) => <h3 className={styles.mdH3}>{children}</h3>,
-          p: ({ children }) => <p className={styles.mdP}>{children}</p>,
+          p: ({ children }) => {
+            // Check if children contains cursor marker and render cursor inline
+            const processChildren = (child: React.ReactNode): React.ReactNode => {
+              if (typeof child === 'string' && child.includes(CURSOR_MARKER)) {
+                const parts = child.split(CURSOR_MARKER);
+                return <>{parts[0]}<span className={styles.cursor} /></>;
+              }
+              return child;
+            };
+            const processed = Array.isArray(children) 
+              ? children.map(processChildren)
+              : processChildren(children);
+            return <p className={styles.mdP}>{processed}</p>;
+          },
           strong: ({ children }) => <strong className={styles.mdStrong}>{children}</strong>,
           ul: ({ children }) => <ul className={styles.mdUl}>{children}</ul>,
           li: ({ children }) => <li className={styles.mdLi}>{children}</li>,
@@ -87,11 +105,18 @@ function TypewriterText({
               {children}
             </a>
           ),
+          // Handle text nodes directly for cursor injection
+          text: ({ children }) => {
+            if (typeof children === 'string' && children.includes(CURSOR_MARKER)) {
+              const parts = children.split(CURSOR_MARKER);
+              return <>{parts[0]}<span className={styles.cursor} /></>;
+            }
+            return <>{children}</>;
+          },
         }}
       >
-        {displayedText}
+        {textWithCursor}
       </ReactMarkdown>
-      {showCursor && <span className={styles.cursor} />}
     </div>
   );
 }
@@ -244,9 +269,9 @@ export default function NarrativeStream({
         return null;
       })}
 
-      {/* Show cursor only if streaming with no segments yet */}
+      {/* Show thinking cursor when streaming but no text segments yet, or between tool and next text */}
       {isStreaming && segments.length === 0 && (
-        <div className={styles.narrativeText}>
+        <div className={styles.thinkingCursor}>
           <span className={styles.cursor} />
         </div>
       )}

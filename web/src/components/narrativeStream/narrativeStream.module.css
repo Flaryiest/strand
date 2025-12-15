@@ -82,6 +82,12 @@
   animation: blink 1s ease-in-out infinite;
 }
 
+/* Thinking cursor - shown on its own line while AI is processing */
+.thinkingCursor {
+  padding: 0.5rem 0;
+  min-height: 1.5em;
+}
+
 @keyframes blink {
   0%, 50% {
     opacity: 1;
