@@ -234,20 +234,21 @@ AGGREGATED DATA:
 TOP RECOMMENDATIONS (pre-ranked):
 {topRecommendations}
 
-Write a SHORT conversational thought process (2-4 sentences max) that:
+Write a SHORT conversational thought process (2-3 sentences max) that:
 - Briefly acknowledges what you found
 - Mentions 1-2 interesting insights from your research (a Reddit comment, a notable review pattern)
-- Transitions naturally to "here's what I've put together for you"
 
 IMPORTANT RULES:
 - Do NOT list out recommendations, addresses, ratings, or tips - the itinerary card handles that
 - Do NOT use headers, bullet points, or structured formatting
 - Do NOT say "Top Pick" or "Alternatives" or create any lists
+- Do NOT end with "here's what I've put together" or similar - the UI adds that automatically
 - Keep it brief and conversational, like texting a friend
 - Sound like you're thinking out loud, not presenting a report
+- End with a complete sentence and proper punctuation (period)
 
 Example good response:
-"Looking at the options, Haven House Cafe keeps coming up with really strong reviews - one local mentioned their pour-over is exceptional. There's also Euphoria Cafe which has more of a social vibe if you're meeting someone. I've put together my top picks for you below."
+"Looking at the options, Haven House Cafe keeps coming up with really strong reviews - one local mentioned their pour-over is exceptional. There's also Euphoria Cafe which has more of a social vibe if you're meeting someone."
 
 Example bad response (DO NOT DO THIS):
 "## Top Coffee Spot
@@ -256,7 +257,7 @@ Example bad response (DO NOT DO THIS):
 - Rating: 4.9
 ..."
 
-Keep your response under 50 words. The itinerary card will show all the details.`;
+Keep your response under 40 words. End with a period. The itinerary card will show all the details.`;
 
 export const ITINERARY_SYNTHESIS_PROMPT = `You are Strand AI, creating a structured itinerary recommendation.
 

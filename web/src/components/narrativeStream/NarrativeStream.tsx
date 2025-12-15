@@ -141,14 +141,14 @@ export default function NarrativeStream({
 
         case 'data':
           // Find the corresponding tool and mark it complete with detailed results
-          const dataMsg = event.data.message || '';
-          const toolMatch = dataMsg.match(/from (\w+)/);
+          const actionName2 = event.data.action;
           let targetTool: ParsedSegment | undefined;
           
-          if (toolMatch) {
-            targetTool = toolStates.get(toolMatch[1]);
+          if (actionName2) {
+            // Use the action field to find the correct tool
+            targetTool = toolStates.get(actionName2);
           } else {
-            // Mark the most recent running tool as complete
+            // Fallback: Mark the most recent running tool as complete
             for (const [, tool] of toolStates) {
               if (tool.toolStatus === 'running') {
                 targetTool = tool;

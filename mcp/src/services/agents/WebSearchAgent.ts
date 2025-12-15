@@ -36,10 +36,12 @@ export class WebSearchAgent extends BaseToolAgent {
     // Store context for use in search
     this.currentContext = context;
     
-    // Build an optimized search query
-    let query = context.goal;
+    // Build a simplified search query (Serper has query length/complexity limits)
+    let query = this.simplifyQuery(context.goal);
     if (context.location) {
-      query = `${context.goal} ${context.location}`;
+      // Extract just city name from location
+      const city = this.extractCity(context.location);
+      query = `${query} ${city}`;
     }
     // Add "best" for recommendation queries
     if (!query.toLowerCase().includes('best') && !query.toLowerCase().includes('top')) {
@@ -53,6 +55,40 @@ export class WebSearchAgent extends BaseToolAgent {
       maxChars: 6000,
       excludeUrls: context.seenUrls
     };
+  }
+  
+  /**
+   * Simplify complex AI-generated queries to work with Serper's limitations
+   */
+  private simplifyQuery(query: string): string {
+    // Remove instructional phrases that make queries too long
+    let simplified = query
+      .replace(/^(find|search for|look for|get|collect|gather|locate|discover)\s+/i, '')
+      .replace(/\s*(to capture|for|about|regarding|with|including)\s+.*$/i, '')
+      .replace(/\s*(recommendations?|suggestions?|options?|places?|spots?)\s*$/i, '')
+      .replace(/\s+OR\s+/g, ' ')
+      .replace(/"[^"]+"/g, match => match.replace(/"/g, '')) // Remove quotes
+      .trim();
+    
+    // If still too long, take first 60 chars and trim to last complete word
+    if (simplified.length > 60) {
+      simplified = simplified.substring(0, 60).replace(/\s+\S*$/, '');
+    }
+    
+    return simplified || query.substring(0, 40);
+  }
+  
+  /**
+   * Extract city name from full address
+   */
+  private extractCity(location: string): string {
+    // Try to extract city from address like "44 Edgeland Rd NW, Calgary, AB T3A 2Y4, Canada"
+    const parts = location.split(',').map(p => p.trim());
+    if (parts.length >= 2) {
+      // Second part is usually the city
+      return parts[1].replace(/\s+(AB|BC|ON|QC|SK|MB|NS|NB|NL|PE|NT|YT|NU|CA|USA?)$/i, '').trim();
+    }
+    return location.substring(0, 30);
   }
 
   protected async search(params: WebSearchParams): Promise<WebSearchResult[]> {

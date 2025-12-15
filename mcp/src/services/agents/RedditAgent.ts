@@ -38,13 +38,35 @@ export class RedditAgent extends BaseToolAgent {
     // Find relevant subreddits based on location using AI
     const subreddits = await this.getSubredditsForLocation(context.location, context.goal);
     
+    // Simplify query for Serper (has query length/complexity limits)
+    const simplifiedQuery = this.simplifyQuery(context.goal);
+    
     return {
-      query: context.goal,
+      query: simplifiedQuery,
       subreddits: subreddits.slice(0, 3), // Start with top 3
       sort: 'relevance',
       time: 'year', // Last year for recency
       excludeUrls: context.seenUrls
     };
+  }
+  
+  /**
+   * Simplify complex AI-generated queries to work with Serper's limitations
+   */
+  private simplifyQuery(query: string): string {
+    // Remove instructional phrases that make queries too long
+    let simplified = query
+      .replace(/^(find|search for|look for|get|collect|gather|locate|discover)\s+/i, '')
+      .replace(/\s*(to capture|for capturing|about|regarding|with|including|community opinions|threads|informal consensus|tips)\s+.*$/i, '')
+      .replace(/\s*(recommendations?|suggestions?|options?)\s*$/i, '')
+      .trim();
+    
+    // If still too long, take first 50 chars and trim to last complete word
+    if (simplified.length > 50) {
+      simplified = simplified.substring(0, 50).replace(/\s+\S*$/, '');
+    }
+    
+    return simplified || query.substring(0, 30);
   }
 
   /**
@@ -62,19 +84,25 @@ export class RedditAgent extends BaseToolAgent {
     }
 
     try {
-      const prompt = `You are a Reddit expert. Given a location and search goal, suggest the most relevant subreddits to search for local recommendations.
+      // Extract city name for cleaner prompt
+      const city = this.extractCityFromLocation(location);
+      const simplifiedGoal = this.simplifyQuery(goal || 'local recommendations');
+      
+      const prompt = `Task: Return subreddits for searching "${simplifiedGoal}" in ${city}.
 
-Location: ${location}
-Goal: ${goal || 'local recommendations'}
+Rules:
+- Return ONLY a JSON array of 3-5 subreddit names
+- No r/ prefix, just the name
+- Prioritize: city sub, city food sub, ask sub
+- No explanation, just the array
 
-Return a JSON array of 4-6 subreddit names (without the r/ prefix) that would be most useful for finding local recommendations in this area. Consider:
-1. City/region-specific subreddits (e.g., "Seattle", "bayarea", "toronto")
-2. Local food subreddits (e.g., "seattlefood", "FoodNYC") 
-3. Local ask subreddits (e.g., "AskNYC", "AskSF", "askTO")
-4. Activity-specific subreddits if relevant to the goal
-5. General fallbacks like "travel" or "food" if no local subs exist
+Example for "burgers in Seattle":
+["Seattle", "seattlefood", "AskSeattle"]
 
-Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "seattlefood", "AskSeattle"]`;
+Example for "hiking near Denver":
+["Denver", "COhiking", "coloradohikers"]
+
+Your response for "${simplifiedGoal}" in ${city}:`;
 
       const response = await this.callLLM(prompt);
       const subreddits = this.parseJsonResponse<string[]>(response);
@@ -91,6 +119,21 @@ Only return the JSON array, no other text. Example: ["Seattle", "SeattleWA", "se
 
     // Fallback to defaults
     return defaultSubs;
+  }
+  
+  /**
+   * Extract city name from full address
+   */
+  private extractCityFromLocation(location: string): string {
+    // Try to extract city from address like "44 Edgeland Rd NW, Calgary, AB T3A 2Y4, Canada"
+    const parts = location.split(',').map(p => p.trim());
+    if (parts.length >= 2) {
+      // Second part is usually the city
+      return parts[1].replace(/\s+(AB|BC|ON|QC|SK|MB|NS|NB|NL|PE|NT|YT|NU|CA|USA?)$/i, '').trim();
+    }
+    // If no comma, try to extract a city-like word
+    const cityMatch = location.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/);
+    return cityMatch ? cityMatch[1] : location.substring(0, 20);
   }
 
   protected async search(params: RedditSearchParams): Promise<RedditSearchResult[]> {

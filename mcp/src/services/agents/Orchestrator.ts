@@ -314,6 +314,7 @@ export class Orchestrator {
         transparency?.emitStep({
           type: 'data',
           data: {
+            action: plan.name,
             message: resultMessages[plan.name] || `Found ${result.results.length} results from ${this.getAgentDisplayName(plan.name)}`,
             results: { count: result.results.length, iterations: result.iterations, summary }
           }
