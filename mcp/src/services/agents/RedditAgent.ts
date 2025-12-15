@@ -23,7 +23,7 @@ interface RedditSearchParams {
 export class RedditAgent extends BaseToolAgent {
   name = 'reddit_agent';
   description = 'Searches Reddit for authentic local recommendations and discussions';
-  protected maxIterations = 3;
+  protected maxIterations = 1;
 
   // Cache for AI-determined subreddits to avoid repeated calls
   private subredditCache = new Map<string, string[]>();
@@ -146,12 +146,17 @@ Your response for "${simplifiedGoal}" in ${city}:`;
 
     const results: RedditSearchResult[] = [];
     const excludeUrls = params.excludeUrls || this.currentContext?.seenUrls;
+    
+    // Clean the query - remove any site:reddit.com that LLM might have added
+    const cleanQuery = params.query.replace(/\s*site:reddit\.com[^\s]*/gi, '').trim();
 
     // Search across specified subreddits
     for (const subreddit of params.subreddits || ['all']) {
-      const query = subreddit === 'all' 
-        ? `${params.query} site:reddit.com`
-        : `${params.query} site:reddit.com/r/${subreddit}`;
+      // Strip r/ prefix if LLM included it
+      const cleanSub = subreddit.replace(/^r\//i, '');
+      const query = cleanSub === 'all' 
+        ? `${cleanQuery} site:reddit.com`
+        : `${cleanQuery} site:reddit.com/r/${cleanSub}`;
 
       console.log(`[RedditAgent] Searching: ${query}`);
 

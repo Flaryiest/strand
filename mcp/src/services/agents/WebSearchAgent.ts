@@ -27,7 +27,7 @@ interface WebSearchParams {
 export class WebSearchAgent extends BaseToolAgent {
   name = 'web_agent';
   description = 'Searches the web for articles, reviews, and recommendations using Serper API';
-  protected maxIterations = 3;
+  protected maxIterations = 1;
   
   // Store context for access in search method
   private currentContext: AgentContext | null = null;

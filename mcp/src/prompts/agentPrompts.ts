@@ -99,13 +99,17 @@ Assessment criteria:
 
 If NOT sufficient, suggest refinements:
 - Try different subreddits (local city subs, food subs, travel subs)
-- Modify search terms
+- Modify search terms (keep it SHORT - max 5 words)
 - Search for specific aspects (e.g., "cheap", "romantic", "hidden gem")
 
 Known subreddit patterns:
-- Cities: r/[cityname], r/Ask[CityName], r/[cityname]food
-- Food: r/food, r/FoodPorn, r/Cooking
-- Travel: r/travel, r/solotravel, r/TravelHacks
+- Cities: [cityname], Ask[CityName], [cityname]food
+- Food: food, FoodPorn, Cooking
+- Travel: travel, solotravel, TravelHacks
+
+IMPORTANT:
+- subreddits: NO "r/" prefix, just the name (e.g. "Calgary" not "r/Calgary")
+- query: NO "site:reddit.com" - just search terms (e.g. "best coffee shops" not "best coffee site:reddit.com")
 
 Respond with ONLY valid JSON (no markdown):
 {
@@ -126,8 +130,8 @@ Respond with ONLY valid JSON (no markdown):
   "refinement": {
     "action": "try_subreddit" | "modify_query" | "add_specificity" | null,
     "params": { 
-      "subreddits": ["r/subreddit1", "r/subreddit2"],
-      "query": "refined query"
+      "subreddits": ["Calgary", "CalgaryFood"],
+      "query": "best coffee shops"
     }
   }
 }`;
