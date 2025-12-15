@@ -286,7 +286,7 @@ export class Orchestrator {
       };
 
       const narrativeMessages: Record<string, string> = {
-        'places_agent': `Searching Google Maps for places matching "${plan.goal}"...`,
+        'places_agent': `Searching Google Maps for relevant places...`,
         'web_agent': `Looking through travel blogs and review sites for insights...`,
         'reddit_agent': `Checking Reddit for local recommendations and honest opinions...`
       };
