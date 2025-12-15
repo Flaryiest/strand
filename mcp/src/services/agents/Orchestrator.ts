@@ -575,7 +575,8 @@ export class Orchestrator {
         priceLevel: p.priceLevel,
         types: p.types,
         placeId: p.placeId,
-        location: p.location
+        location: p.location,
+        photoUrl: p.photoUrl
       })) || []
     };
 

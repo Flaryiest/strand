@@ -19,6 +19,7 @@ interface PlaceResult {
     lng: number;
   };
   placeId: string;
+  photoUrl?: string;
 }
 
 export class SearchPlacesTool extends BaseTool {
@@ -87,18 +88,27 @@ export class SearchPlacesTool extends BaseTool {
       }
 
       // Transform results into a cleaner format
-      const places: PlaceResult[] = (data.results || []).map((place: any) => ({
-        name: place.name,
-        address: place.formatted_address,
-        rating: place.rating,
-        priceLevel: place.price_level,
-        types: place.types || [],
-        location: {
-          lat: place.geometry?.location?.lat,
-          lng: place.geometry?.location?.lng
-        },
-        placeId: place.place_id
-      }));
+      const places: PlaceResult[] = (data.results || []).map((place: any) => {
+        // Build photo URL from photo_reference if available
+        let photoUrl: string | undefined;
+        if (place.photos && place.photos.length > 0 && place.photos[0].photo_reference) {
+          photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${config.googleMapsApiKey}`;
+        }
+        
+        return {
+          name: place.name,
+          address: place.formatted_address,
+          rating: place.rating,
+          priceLevel: place.price_level,
+          types: place.types || [],
+          location: {
+            lat: place.geometry?.location?.lat,
+            lng: place.geometry?.location?.lng
+          },
+          placeId: place.place_id,
+          photoUrl
+        };
+      });
 
       return {
         success: true,

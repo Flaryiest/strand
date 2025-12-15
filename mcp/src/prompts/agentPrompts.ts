@@ -294,7 +294,7 @@ For each place, generate:
 - "bestFor" (who/what this is perfect for)
 
 Use the actual place data from the results - real names, addresses, ratings.
-If photo URLs are not available, leave photoUrl as null.
+IMPORTANT: If a place has a photoUrl in the aggregated data (placesHighlights), include it in your response. Only set photoUrl to null if no photo URL is available in the data.
 
 IMPORTANT: Generate a unique ID for each place using format "place-{index}".
 
