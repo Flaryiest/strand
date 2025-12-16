@@ -10,7 +10,8 @@ export interface PlaceRecommendation {
   reviewCount?: number;
   priceLevel?: number; // 1-4 ($-$$$$)
   types: string[];
-  photoUrl?: string;
+  photoReference?: string; // Google Places photo reference (use getPhotoUrl to get proxy URL)
+  photoUrl?: string; // Legacy: direct photo URL (deprecated, use photoReference)
   googleMapsUrl?: string;
   placeId?: string;
   location?: {
@@ -21,6 +22,18 @@ export interface PlaceRecommendation {
   reason: string; // Why this was recommended
   highlights?: string[]; // Key features
   bestFor?: string; // "Perfect for romantic dinner"
+}
+
+/**
+ * Get the photo URL for a place recommendation
+ * Uses the API proxy to avoid CORS issues with Google Places Photo API
+ */
+export function getPhotoUrl(place: PlaceRecommendation, baseUrl: string): string | undefined {
+  if (place.photoReference) {
+    return `${baseUrl}/maps/photo?photoReference=${encodeURIComponent(place.photoReference)}`;
+  }
+  // Fallback to legacy photoUrl if present
+  return place.photoUrl;
 }
 
 export interface RecommendationSlot {

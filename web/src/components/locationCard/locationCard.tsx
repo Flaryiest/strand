@@ -1,4 +1,5 @@
-import { PlaceRecommendation } from '@/types/recommendation.types';
+import { PlaceRecommendation, getPhotoUrl } from '@/types/recommendation.types';
+import { baseUrl } from '@/utils/baseUrl';
 import styles from './locationCard.module.css';
 
 interface LocationCardProps {
@@ -22,6 +23,8 @@ export default function LocationCard({
   onSelect,
   onViewOnMap
 }: LocationCardProps) {
+  const photoUrl = getPhotoUrl(place, baseUrl);
+
   const formatPriceLevel = (level?: number) => {
     if (!level) return null;
     return '$'.repeat(level);
@@ -50,9 +53,9 @@ export default function LocationCard({
     >
       {/* Image Section */}
       <div className={styles.imageContainer}>
-        {place.photoUrl ? (
+        {photoUrl ? (
           <img
-            src={place.photoUrl}
+            src={photoUrl}
             alt=""
             className={styles.image}
             loading="lazy"

@@ -1,8 +1,10 @@
 import { useState, useCallback, useRef } from 'react';
 import {
   RecommendationSlot,
-  PlaceRecommendation
+  PlaceRecommendation,
+  getPhotoUrl
 } from '@/types/recommendation.types';
+import { baseUrl } from '@/utils/baseUrl';
 import LocationCard from '@/components/locationCard/locationCard';
 import styles from './cardCarousel.module.css';
 
@@ -196,15 +198,17 @@ export default function CardCarousel({
       {/* Alternative Thumbnails */}
       {hasMultiple && allOptions.length <= 4 && (
         <div className={styles.alternativesPreview}>
-          {allOptions.map((place, idx) => (
+          {allOptions.map((place, idx) => {
+            const thumbPhotoUrl = getPhotoUrl(place, baseUrl);
+            return (
             <button
               key={place.id}
               className={`${styles.alternativeThumb} ${idx === selectedIndex ? styles.alternativeThumbActive : ''}`}
               onClick={() => goToIndex(idx)}
             >
-              {place.photoUrl ? (
+              {thumbPhotoUrl ? (
                 <img
-                  src={place.photoUrl}
+                  src={thumbPhotoUrl}
                   alt=""
                   className={styles.thumbImage}
                 />
@@ -248,7 +252,8 @@ export default function CardCarousel({
                 {getChoiceLabel(idx)}
               </span>
             </button>
-          ))}
+          );
+          })}
         </div>
       )}
 

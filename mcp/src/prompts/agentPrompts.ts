@@ -306,7 +306,7 @@ For each place, generate:
 
 Use the actual place data from the results - real names, addresses, ratings.
 CRITICAL: Copy the "placeId" from placesHighlights for each place you recommend. This is required for matching.
-IMPORTANT: If a place has a photoUrl in the aggregated data (placesHighlights), include it in your response. Only set photoUrl to null if no photo URL is available in the data.
+CRITICAL: Copy the "photoReference" from placesHighlights for each place you recommend. This is required for displaying images.
 
 IMPORTANT: Generate a unique ID for each place using format "place-{index}".
 
@@ -329,7 +329,7 @@ Respond with ONLY valid JSON (no markdown, no explanation):
         "reviewCount": 1234,
         "priceLevel": 2,
         "types": ["restaurant", "italian"],
-        "photoUrl": "https://maps.googleapis.com/... (COPY from placesHighlights)",
+        "photoReference": "AZLa... (COPY from placesHighlights - REQUIRED)",
         "googleMapsUrl": "https://maps.google.com/?q=Place+Name+City",
         "reason": "Why this place is perfect for their request",
         "highlights": ["Feature 1", "Feature 2", "Feature 3"],
