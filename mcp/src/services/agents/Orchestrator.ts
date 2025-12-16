@@ -47,7 +47,7 @@ interface PlaceRecommendation {
   reviewCount?: number;
   priceLevel?: number;
   types: string[];
-  photoUrl?: string | null;
+  photoReference?: string | null; // Google Places photo reference (frontend uses proxy to fetch)
   googleMapsUrl?: string;
   reason: string;
   highlights?: string[];
@@ -612,7 +612,7 @@ export class Orchestrator {
         types: p.types,
         placeId: p.placeId,
         location: p.location,
-        photoUrl: p.photoUrl
+        photoReference: p.photoReference
       })) || []
     };
 
@@ -678,14 +678,14 @@ export class Orchestrator {
   }
 
   /**
-   * Enrich a place recommendation with photoUrl from original places data
-   * This ensures photoUrl is preserved even if the LLM doesn't copy it correctly
+   * Enrich a place recommendation with photoReference from original places data
+   * This ensures photoReference is preserved even if the LLM doesn't copy it correctly
    */
   private enrichPlaceWithPhoto(place: PlaceRecommendation, placesHighlights: any[]): PlaceRecommendation {
     if (!place) return place;
     
-    // If place already has a valid photoUrl, keep it
-    if (place.photoUrl && place.photoUrl.startsWith('http')) {
+    // If place already has a valid photoReference, keep it
+    if (place.photoReference) {
       return place;
     }
     
@@ -708,16 +708,16 @@ export class Orchestrator {
       });
     }
     
-    if (matchingPlace?.photoUrl) {
-      console.log(`[Orchestrator] Enriched "${place.name}" with photoUrl from places data`);
+    if (matchingPlace?.photoReference) {
+      console.log(`[Orchestrator] Enriched "${place.name}" with photoReference from places data`);
       return {
         ...place,
-        photoUrl: matchingPlace.photoUrl,
+        photoReference: matchingPlace.photoReference,
         // Also ensure location is preserved
         location: place.location || matchingPlace.location
       };
     } else {
-      console.log(`[Orchestrator] No photoUrl found for "${place.name}" - placeId: ${place.placeId || 'none'}`);
+      console.log(`[Orchestrator] No photoReference found for "${place.name}" - placeId: ${place.placeId || 'none'}`);
     }
     
     return place;
