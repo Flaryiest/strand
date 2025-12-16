@@ -7,7 +7,16 @@ export interface AgentResult {
   metadata?: {
     totalApiCalls: number;
     processingTime: number;
+    errors?: ErrorRecord[];
   };
+}
+
+export interface ErrorRecord {
+  iteration: number;
+  phase: 'search' | 'evaluation' | 'refinement';
+  message: string;
+  recoverable: boolean;
+  timestamp: string;
 }
 
 export interface EvaluationResult {
@@ -29,6 +38,8 @@ export interface AgentContext {
   // Track URLs/places already fetched to avoid duplicates in subsequent searches
   seenUrls?: Set<string>;
   seenPlaceIds?: Set<string>;
+  // Error history from previous iterations for adaptive behavior
+  errorHistory?: ErrorRecord[];
   // Optional transparency emitter (kept loosely typed to avoid dependency cycles)
   transparency?: {
     thinking: (message: string, progress?: number) => Promise<void> | void;
@@ -65,7 +76,7 @@ export abstract class BaseToolAgent {
   protected abstract getInitialParams(context: AgentContext): Record<string, any> | Promise<Record<string, any>>;
 
   /**
-   * Main execution loop with iterative refinement
+   * Main execution loop with iterative refinement and error feedback
    */
   async execute(context: AgentContext): Promise<AgentResult> {
     const startTime = Date.now();
@@ -73,6 +84,7 @@ export abstract class BaseToolAgent {
     let iteration = 0;
     let totalApiCalls = 0;
     let params = await this.getInitialParams(context);
+    const errorHistory: ErrorRecord[] = [];
 
     console.log(`[${this.name}] Starting execution for goal: ${context.goal}`);
 
@@ -80,16 +92,34 @@ export abstract class BaseToolAgent {
       iteration++;
       console.log(`[${this.name}] Iteration ${iteration}/${this.maxIterations}`);
 
+      // Search phase
+      let newResults: any[] = [];
       try {
-        // Perform search
-        const newResults = await this.search(params);
+        newResults = await this.search(params);
         totalApiCalls++;
         allResults = this.mergeResults(allResults, newResults);
-
         console.log(`[${this.name}] Got ${newResults.length} new results, total: ${allResults.length}`);
+      } catch (error) {
+        const errorRecord = this.recordError(error, iteration, 'search');
+        errorHistory.push(errorRecord);
+        console.error(`[${this.name}] Search error in iteration ${iteration}:`, error);
+        
+        // If we have some results, continue to evaluation with error context
+        // Otherwise, try to recover with modified params
+        if (allResults.length === 0 && iteration < this.maxIterations) {
+          params = this.adjustParamsAfterError(params, errorRecord);
+          continue;
+        }
+      }
 
-        // Evaluate results
-        const evaluation = await this.evaluateResults(allResults, context);
+      // Evaluation phase - pass error history for adaptive behavior
+      try {
+        const contextWithErrors: AgentContext = {
+          ...context,
+          errorHistory: errorHistory.length > 0 ? errorHistory : undefined
+        };
+        
+        const evaluation = await this.evaluateResults(allResults, contextWithErrors);
         totalApiCalls++; // LLM evaluation call
 
         console.log(`[${this.name}] Evaluation: sufficient=${evaluation.sufficient}, score=${evaluation.score}`);
@@ -100,7 +130,8 @@ export abstract class BaseToolAgent {
             iterations: iteration,
             metadata: {
               totalApiCalls,
-              processingTime: Date.now() - startTime
+              processingTime: Date.now() - startTime,
+              errors: errorHistory.length > 0 ? errorHistory : undefined
             }
           };
         }
@@ -115,12 +146,21 @@ export abstract class BaseToolAgent {
           break;
         }
       } catch (error) {
-        console.error(`[${this.name}] Error in iteration ${iteration}:`, error);
-        // Continue to next iteration or return what we have
+        const errorRecord = this.recordError(error, iteration, 'evaluation');
+        errorHistory.push(errorRecord);
+        console.error(`[${this.name}] Evaluation error in iteration ${iteration}:`, error);
+        
+        // If evaluation fails but we have results, try to continue or return what we have
         if (allResults.length > 0) {
-          break;
+          // If this is the last iteration, break and return results
+          if (iteration >= this.maxIterations) {
+            break;
+          }
+          // Otherwise, try expanding search with adjusted params
+          params = this.adjustParamsAfterError(params, errorRecord);
+        } else if (!errorRecord.recoverable) {
+          throw error;
         }
-        throw error;
       }
     }
 
@@ -131,9 +171,83 @@ export abstract class BaseToolAgent {
       hitLimit: iteration >= this.maxIterations,
       metadata: {
         totalApiCalls,
-        processingTime: Date.now() - startTime
+        processingTime: Date.now() - startTime,
+        errors: errorHistory.length > 0 ? errorHistory : undefined
       }
     };
+  }
+
+  /**
+   * Record an error with metadata for feedback
+   */
+  protected recordError(error: unknown, iteration: number, phase: 'search' | 'evaluation' | 'refinement'): ErrorRecord {
+    const message = error instanceof Error ? error.message : String(error);
+    const recoverable = this.isRecoverableError(error);
+    
+    return {
+      iteration,
+      phase,
+      message: message.slice(0, 500), // Truncate very long error messages
+      recoverable,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Determine if an error is recoverable (should retry) or fatal (should throw)
+   */
+  protected isRecoverableError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    
+    // Fatal errors - don't retry
+    if (message.includes('401') || message.includes('403')) return false; // Auth errors
+    if (message.includes('Invalid API key')) return false;
+    if (message.includes('quota exceeded')) return false;
+    
+    // Recoverable errors
+    if (message.includes('JSON')) return true; // Parse errors
+    if (message.includes('timeout')) return true;
+    if (message.includes('500') || message.includes('502') || message.includes('503')) return true;
+    if (message.includes('ECONNRESET') || message.includes('ETIMEDOUT')) return true;
+    if (message.includes('No results')) return true;
+    
+    // Default to recoverable for unknown errors
+    return true;
+  }
+
+  /**
+   * Adjust search params after an error to try a different approach
+   */
+  protected adjustParamsAfterError(params: Record<string, any>, error: ErrorRecord): Record<string, any> {
+    // Default implementation - subclasses can override for smarter adjustment
+    const adjusted = { ...params };
+    
+    if (error.phase === 'search') {
+      // Try expanding radius or relaxing filters
+      if (adjusted.radius) {
+        adjusted.radius = Math.min(adjusted.radius * 1.5, 50000);
+      }
+    }
+    
+    return adjusted;
+  }
+
+  /**
+   * Format error history for inclusion in LLM prompts
+   */
+  protected formatErrorHistoryForPrompt(errors: ErrorRecord[]): string {
+    if (!errors || errors.length === 0) return '';
+    
+    const errorSummary = errors.map(e => 
+      `- Iteration ${e.iteration} (${e.phase}): ${e.message}`
+    ).join('\n');
+    
+    return `
+PREVIOUS ERRORS IN THIS SESSION:
+${errorSummary}
+
+Consider these errors when evaluating. If search errors occurred, be more lenient with scoring.
+If evaluation errors occurred (like JSON parsing), ensure your response is valid JSON.`;
   }
 
   /**
@@ -183,7 +297,7 @@ export abstract class BaseToolAgent {
         text: {
           verbosity: this.verbosity
         },
-        max_output_tokens: 1500
+        max_output_tokens: 2500
       })
     });
 

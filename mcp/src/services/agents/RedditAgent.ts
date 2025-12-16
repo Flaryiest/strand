@@ -332,10 +332,16 @@ Your response for "${simplifiedGoal}" in ${city}:`;
       };
     });
 
+    // Build prompt with error history if available
+    const errorContext = context.errorHistory 
+      ? this.formatErrorHistoryForPrompt(context.errorHistory)
+      : '';
+
     const prompt = REDDIT_EVAL_PROMPT
       .replace('{goal}', context.goal)
       .replace('{location}', context.location || 'Not specified')
-      .replace('{results}', JSON.stringify(compactForPrompt, null, 2));
+      .replace('{results}', JSON.stringify(compactForPrompt, null, 2))
+      + errorContext;
 
     try {
       const response = await this.callLLM(prompt);

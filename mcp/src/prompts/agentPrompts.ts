@@ -14,26 +14,30 @@ CURRENT RESULTS:
 Evaluate these results and determine if they are sufficient for the user's needs.
 
 Assessment criteria:
-1. QUANTITY: Do we have at least 5 quality options?
-2. RATINGS: Are there options with 4.0+ ratings?
-3. VARIETY: Are there different price points/types represented?
-4. RELEVANCE: Do results match the search intent?
-5. COMPLETENESS: Do we have addresses and ratings for most results?
+1. QUANTITY: Do we have at least 5 quality options that genuinely match the goal?
+2. RATINGS: Are there options with 4.0+ ratings and meaningful review counts (10+)?
+3. VARIETY: Are there different price points/styles/vibes represented?
+4. RELEVANCE: Do results actually match the search intent? (e.g., if looking for "romantic dinner", are these actually romantic spots, not just restaurants?)
+5. QUALITY: Would you confidently recommend these to a friend?
 
 If NOT sufficient, suggest refinements:
-- Expand search radius (current: {radius}m)
-- Try different place types
-- Broaden or narrow the query
+- Expand search radius (current: {radius}m) if too few results
+- Try different place types that better match the goal
+- Modify query to be more specific or broader
 
-Respond with ONLY valid JSON (no markdown):
+IMPORTANT: For "extracted", only return the placeId of each selected place. The full data will be looked up separately.
+
+Respond with ONLY valid JSON (no markdown, no extra text):
 {
   "sufficient": boolean,
   "score": 1-10,
-  "gaps": ["list of what's missing or could be better"],
-  "extracted": [top 10 most relevant results with name, address, rating, priceLevel, placeId, photoUrl, location, types, userRatingsTotal - preserve ALL fields from the input],
+  "gaps": ["specific issues - e.g. 'no high-end options' or 'all results are chains'"],
+  "extracted": [
+    { "placeId": "ChIJ...", "reason": "brief reason for selection" }
+  ],
   "refinement": {
     "action": "expand_radius" | "change_type" | "modify_query" | null,
-    "params": { "radius": number, "type": string, "query": string }
+    "params": { "radius": number, "type": "string", "query": "string" }
   }
 }`;
 

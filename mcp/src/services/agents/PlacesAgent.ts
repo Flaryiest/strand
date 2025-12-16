@@ -149,13 +149,18 @@ export class PlacesAgent extends BaseToolAgent {
     results: PlaceResult[],
     context: AgentContext
   ): Promise<EvaluationResult> {
-    // Build the evaluation prompt
+    // Build the evaluation prompt with error history if available
+    const errorContext = context.errorHistory 
+      ? this.formatErrorHistoryForPrompt(context.errorHistory)
+      : '';
+    
     const prompt = PLACES_EVAL_PROMPT
       .replace('{goal}', context.goal)
       .replace('{location}', context.location || 'Not specified')
       .replace('{budget}', context.budget || 'Not specified')
       .replace('{results}', JSON.stringify(results.slice(0, 15), null, 2))
-      .replace('{radius}', String(this.defaultRadius));
+      .replace('{radius}', String(this.defaultRadius))
+      + errorContext;
 
     try {
       const response = await this.callLLM(prompt);
