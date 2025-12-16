@@ -70,22 +70,18 @@ const demoConversation: DemoMessage[] = [
 
 const examplePrompts = [
   {
-    icon: '🍽️',
     title: 'Date Night',
     prompt: 'Plan a romantic dinner date downtown, budget $100-150'
   },
   {
-    icon: '👨‍👩‍👧‍👦',
     title: 'Family Day',
     prompt: 'Fun activities for kids under 10, outdoor preferred'
   },
   {
-    icon: '☕',
     title: 'Work Session',
     prompt: 'Best cafes for working, need good wifi and outlets'
   },
   {
-    icon: '🎉',
     title: 'Night Out',
     prompt: 'Bar hopping route for a group of 6, craft cocktails'
   }
@@ -208,7 +204,6 @@ export default function DemoPage() {
                       className={styles.exampleCard}
                       onClick={() => handleExampleClick(example.prompt)}
                     >
-                      <span className={styles.exampleIcon}>{example.icon}</span>
                       <span className={styles.exampleTitle}>
                         {example.title}
                       </span>

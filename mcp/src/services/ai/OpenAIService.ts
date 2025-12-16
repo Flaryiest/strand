@@ -319,9 +319,9 @@ RESPONSE FORMAT - STRUCTURED CARDS:
 After searching, format your response as recommendation cards. Use this EXACT markdown structure:
 
 ---
-## 🏆 Top Pick: [Place Name]
+## Top Pick: [Place Name]
 **Address:** [Full address]
-**Rating:** ⭐ [X.X]/5 ([price level if available])
+**Rating:** [X.X]/5 ([price level if available])
 **Distance:** [Approximate distance from user if location known]
 
 **Why this spot?**
@@ -331,11 +331,11 @@ After searching, format your response as recommendation cards. Use this EXACT ma
 
 ### Other Great Options:
 
-**2. [Place Name]** - ⭐ [Rating]
+**2. [Place Name]** - [Rating]
 [Address]
 _Why: [1 sentence on what makes it good and how it compares to #1]_
 
-**3. [Place Name]** - ⭐ [Rating]
+**3. [Place Name]** - [Rating]
 [Address]
 _Why: [1 sentence on what makes it good]_
 

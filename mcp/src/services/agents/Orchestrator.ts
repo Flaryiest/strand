@@ -120,43 +120,63 @@ export class Orchestrator {
       seenPlaceIds
     };
 
-    transparency?.thinking('Let me understand what you\'re looking for and find the best options...');
-
-    // Phase 1: Create execution plan
+    // Phase 1: Create execution plan - let AI generate the opening message
     const plan = await this.createPlan(query, location, budget);
     console.log('[Orchestrator] Plan created:', JSON.stringify(plan, null, 2));
 
-    transparency?.analyzing(`I'll search ${plan.agents.length} sources to find the perfect recommendations for you.`, {
-      reasoning: plan.reasoning,
-      agents: plan.agents.map(a => a.name)
+    // Use AI-generated thinking message or fall back to generic
+    const thinkingMessage = (plan as any).thinkingMessage || `Looking into ${query}...`;
+    transparency?.thinking(thinkingMessage);
+
+    // Show the AI's search strategy with specific details
+    const searchFocus = (plan as any).searchFocus || [];
+    const agentDetails = plan.agents.map((a: any) => ({
+      name: a.name,
+      lookingFor: a.lookingFor || a.goal
+    }));
+    
+    transparency?.analyzing(plan.reasoning, {
+      searchFocus,
+      agents: agentDetails
     });
 
-    // Phase 2: Execute agents in parallel
-    transparency?.thinking(`Searching across Google Maps, web articles, and local discussions to gather comprehensive information...`);
+    // Phase 2: Execute agents in parallel - show what each agent is looking for
+    const searchDescription = plan.agents
+      .map((a: any) => a.lookingFor || a.goal)
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(', then ');
+    transparency?.thinking(searchDescription ? `Searching for ${searchDescription}...` : 'Gathering information from multiple sources...');
+    
     let results = await this.executeAgentsParallel(plan.agents, context, transparency);
 
     // Phase 3: Evaluate combined results and potentially request more
     let round = 0;
     let confidence = 0;
     let topRecommendations: any[] = [];
+    let lastEvaluation: any = null;
 
     while (round < this.maxRounds) {
       round++;
-      transparency?.analyzing(`Reviewing what I've found and checking if I have enough quality information...`);
 
       const evaluation = await this.evaluateCombinedResults(query, location, results);
+      lastEvaluation = evaluation;
       confidence = evaluation.confidence;
       topRecommendations = evaluation.topRecommendations;
 
-      transparency?.analyzing('Looking at the data quality and coverage', {
+      // Use AI-generated analysis message with specific findings
+      const analysisMessage = evaluation.analysisMessage || 'Looking at what I found...';
+      const interestingFindings = evaluation.interestingFindings || [];
+      
+      transparency?.analyzing(analysisMessage, {
         sufficient: evaluation.sufficient,
         confidence: evaluation.confidence,
-        gaps: evaluation.gaps,
-        topRecommendations: (evaluation.topRecommendations || []).slice(0, 5).map((r: any) => ({
+        interestingFindings,
+        topPicks: (evaluation.topRecommendations || []).slice(0, 3).map((r: any) => ({
           name: r?.name,
-          sources: r?.sources
+          whyPicked: r?.whyPicked || r?.highlights?.[0]
         })),
-        additionalQueries: evaluation.additionalQueries || []
+        gaps: evaluation.gaps
       });
 
       console.log(`[Orchestrator] Round ${round} evaluation:`, {
@@ -166,13 +186,20 @@ export class Orchestrator {
       });
 
       if (evaluation.sufficient) {
-        transparency?.deciding('I have enough quality information now. Let me put together my recommendations for you...', 'Compiling the best options based on ratings, reviews, and local insights.');
+        // Generate a specific deciding message based on what was found
+        const topPick = evaluation.topRecommendations?.[0];
+        const decidingMessage = topPick 
+          ? `${topPick.name} is standing out - ${topPick.whyPicked || 'strong reviews across sources'}. Let me put together the full picture...`
+          : 'I have a good sense of the options now. Let me organize my recommendations...';
+        transparency?.deciding(decidingMessage, analysisMessage);
         break;
       }
 
       // Request additional searches if needed
       if (evaluation.additionalQueries && evaluation.additionalQueries.length > 0) {
-        transparency?.thinking('I need a bit more information to give you the best recommendations. Let me dig deeper...');
+        // Use AI-generated message about what more is needed
+        const needsMoreMessage = evaluation.needsMoreMessage || 'Looking for more information...';
+        transparency?.thinking(needsMoreMessage);
         
         const additionalPlans = evaluation.additionalQueries.map((q: any) => ({
           name: q.agent,
@@ -194,7 +221,12 @@ export class Orchestrator {
     }
 
     // Phase 4: Synthesize final response with structured itinerary
-    transparency?.deciding('Alright, I\'ve gathered enough information. Let me think through the best options...', 'Analyzing patterns across sources to find the top recommendations.');
+    // Generate a contextual final message based on what we found
+    const topPick = lastEvaluation?.topRecommendations?.[0];
+    const finalThinkingMessage = topPick
+      ? `Alright, ${topPick.name} is my top pick. Working out the details...`
+      : 'Pulling together the best options I found...';
+    transparency?.deciding(finalThinkingMessage, lastEvaluation?.analysisMessage || 'Analyzing the data...');
     
     // Generate both structured itinerary and text summary
     const { response, itinerary } = await this.synthesizeWithItinerary(
@@ -441,6 +473,9 @@ export class Orchestrator {
     topRecommendations: any[];
     gaps: string[];
     additionalQueries?: any[];
+    analysisMessage?: string;
+    interestingFindings?: string[];
+    needsMoreMessage?: string;
   }> {
     const placesForPrompt = (results.places?.results || []).slice(0, 10);
 

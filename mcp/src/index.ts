@@ -30,7 +30,7 @@ toolRegistry.register(new SearchPlacesTool());
 toolRegistry.register(new WebSearchTool());
 toolRegistry.register(new RedditSearchTool());
 
-console.log('🔧 Registered tools:', toolRegistry.getDefinitions().map(t => t.name));
+console.log('[Tools] Registered:', toolRegistry.getDefinitions().map(t => t.name));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -252,14 +252,14 @@ app.post('/orchestrate', async (req: Request, res: Response) => {
 });
 
 app.listen(port, () => {
-  console.log(`\n🚀 StrandAI Intelligence Server v2.0`);
-  console.log(`   Running on port ${port}\n`);
-  console.log(`📡 Endpoints:`);
+  console.log(`\n[Server] StrandAI Intelligence Server v2.0`);
+  console.log(`         Running on port ${port}\n`);
+  console.log(`[Endpoints]`);
   console.log(`   GET  /health        - Health check`);
   console.log(`   GET  /tools         - List available tools`);
   console.log(`   POST /tools/:name   - Execute a tool directly`);
   console.log(`   POST /chat/stream   - Chat with Orchestrator (SSE)`);
   console.log(`   POST /orchestrate   - Direct orchestrator call (JSON)\n`);
-  console.log(`🤖 Agents: PlacesAgent, WebSearchAgent, RedditAgent`);
-  console.log(`🔧 Tools: ${toolRegistry.getNames().join(', ')}\n`);
+  console.log(`[Agents] PlacesAgent, WebSearchAgent, RedditAgent`);
+  console.log(`[Tools] ${toolRegistry.getNames().join(', ')}\n`);
 });

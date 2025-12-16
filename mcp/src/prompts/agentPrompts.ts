@@ -148,7 +148,7 @@ USER CONSTRAINTS: {constraints}
 
 Available agents:
 1. PLACES_AGENT - Google Places API for real business data (addresses, ratings, hours)
-2. WEB_AGENT - Web search for articles, reviews, and recommendations
+2. WEB_AGENT - Web search for articles, reviews, and recommendations  
 3. REDDIT_AGENT - Reddit for authentic local opinions and hidden gems
 
 IMPORTANT: Count the distinct items in the user's request:
@@ -170,14 +170,17 @@ For complex queries (e.g., "romantic date night in SF"), all three add value.
 
 Respond with ONLY valid JSON (no markdown):
 {
-  "reasoning": "Brief explanation of why these agents are needed",
-  "itemCount": number (how many distinct things the user is asking for),
+  "reasoning": "A natural, conversational explanation (1-2 sentences) of your search strategy that could be shown to the user. Mention specific things you'll look for. E.g., 'I'll check Google Maps for highly-rated matcha spots, then cross-reference with Reddit to see which ones locals actually recommend.'",
+  "thinkingMessage": "A brief, varied opening message acknowledging what the user wants (avoid generic phrases like 'Let me understand...'). E.g., 'Matcha in Vancouver - I know a few spots get mentioned a lot...' or 'Interesting choice! Let me dig into what's actually good around here.'",
+  "itemCount": number,
+  "searchFocus": ["specific things to look for, e.g. 'ceremonial-grade matcha', 'cozy atmosphere', 'hidden gems'"],
   "agents": [
     {
       "name": "places_agent" | "web_agent" | "reddit_agent",
       "goal": "Specific search goal for this agent",
-      "priority": 1-3 (1 = most important),
-      "params": { agent-specific parameters }
+      "priority": 1-3,
+      "params": {},
+      "lookingFor": "What specifically this agent will try to find (shown to user)"
     }
   ]
 }`;
@@ -211,6 +214,8 @@ Respond with ONLY valid JSON (no markdown):
 {
   "sufficient": boolean,
   "confidence": 1-10,
+  "analysisMessage": "A natural, specific message about what you found (1-2 sentences). Reference actual data - mention a place name, a Reddit comment you noticed, a pattern in ratings, or something interesting. E.g., 'One place keeps showing up across Google and Reddit - Tsujiri has really consistent reviews for their matcha quality.'",
+  "interestingFindings": ["2-3 specific observations, e.g., 'Reddit user mentioned Nana's Tea has the best ceremonial-grade option', 'Most spots cluster in West End'"],
   "topRecommendations": [
     {
       "name": "Place name",
@@ -218,10 +223,12 @@ Respond with ONLY valid JSON (no markdown):
       "rating": number,
       "sources": ["which agents mentioned this"],
       "highlights": ["why this is recommended"],
-      "caveats": ["any warnings or considerations"]
+      "caveats": ["any warnings or considerations"],
+      "whyPicked": "Brief reason this stood out (e.g., 'Multiple Reddit comments praised their traditional preparation')"
     }
   ],
   "gaps": ["what's missing"],
+  "needsMoreMessage": "If not sufficient, a natural message about what else you're looking for. E.g., 'The ratings are good but I want to check if locals actually recommend these...' (only include if sufficient=false)",
   "additionalQueries": [
     {
       "agent": "places_agent" | "web_agent" | "reddit_agent",
@@ -311,7 +318,6 @@ Respond with ONLY valid JSON (no markdown, no explanation):
     {
       "slotId": "slot-{type}",
       "slotLabel": "Coffee" | "Dinner" | "Activity" | "Drinks" | "Lunch" | etc,
-      "slotIcon": "☕" | "🍝" | "🎭" | "🍸" | etc (single emoji),
       "timeEstimate": "7:00 PM - 8:30 PM" | null,
       "primary": {
         "id": "place-1",
