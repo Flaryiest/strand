@@ -53,7 +53,7 @@ export default function LocationCard({
         {place.photoUrl ? (
           <img
             src={place.photoUrl}
-            alt={place.name}
+            alt=""
             className={styles.image}
             loading="lazy"
           />

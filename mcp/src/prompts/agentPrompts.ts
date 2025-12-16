@@ -305,6 +305,7 @@ For each place, generate:
 - "bestFor" (who/what this is perfect for)
 
 Use the actual place data from the results - real names, addresses, ratings.
+CRITICAL: Copy the "placeId" from placesHighlights for each place you recommend. This is required for matching.
 IMPORTANT: If a place has a photoUrl in the aggregated data (placesHighlights), include it in your response. Only set photoUrl to null if no photo URL is available in the data.
 
 IMPORTANT: Generate a unique ID for each place using format "place-{index}".
@@ -321,6 +322,7 @@ Respond with ONLY valid JSON (no markdown, no explanation):
       "timeEstimate": "7:00 PM - 8:30 PM" | null,
       "primary": {
         "id": "place-1",
+        "placeId": "ChIJ... (COPY from placesHighlights - REQUIRED)",
         "name": "Actual Place Name",
         "address": "Full address",
         "rating": 4.5,

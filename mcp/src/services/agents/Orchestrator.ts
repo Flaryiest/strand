@@ -40,6 +40,7 @@ interface OrchestratorOptions {
 // Itinerary types matching frontend expectations
 interface PlaceRecommendation {
   id: string;
+  placeId?: string; // Google Places ID for reliable matching
   name: string;
   address: string;
   rating?: number;
@@ -688,14 +689,24 @@ export class Orchestrator {
       return place;
     }
     
-    // Try to find matching place in original data by name (case-insensitive partial match)
-    const normalizedName = place.name?.toLowerCase().trim();
-    const matchingPlace = placesHighlights.find(p => {
-      const pName = p.name?.toLowerCase().trim();
-      return pName === normalizedName || 
-             pName?.includes(normalizedName) || 
-             normalizedName?.includes(pName);
-    });
+    // Try to find matching place - placeId is most reliable, then name fallback
+    let matchingPlace = null;
+    
+    // First try exact placeId match (most reliable)
+    if (place.placeId) {
+      matchingPlace = placesHighlights.find(p => p.placeId === place.placeId);
+    }
+    
+    // Fallback to name matching if no placeId match
+    if (!matchingPlace) {
+      const normalizedName = place.name?.toLowerCase().trim();
+      matchingPlace = placesHighlights.find(p => {
+        const pName = p.name?.toLowerCase().trim();
+        return pName === normalizedName || 
+               pName?.includes(normalizedName) || 
+               normalizedName?.includes(pName);
+      });
+    }
     
     if (matchingPlace?.photoUrl) {
       console.log(`[Orchestrator] Enriched "${place.name}" with photoUrl from places data`);
@@ -705,6 +716,8 @@ export class Orchestrator {
         // Also ensure location is preserved
         location: place.location || matchingPlace.location
       };
+    } else {
+      console.log(`[Orchestrator] No photoUrl found for "${place.name}" - placeId: ${place.placeId || 'none'}`);
     }
     
     return place;

@@ -205,7 +205,7 @@ export default function CardCarousel({
               {place.photoUrl ? (
                 <img
                   src={place.photoUrl}
-                  alt={place.name}
+                  alt=""
                   className={styles.thumbImage}
                 />
               ) : (
