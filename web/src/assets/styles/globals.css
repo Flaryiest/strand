@@ -1,3 +1,10 @@
+/* Universal box-sizing fix */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body,
 div,
@@ -150,15 +157,14 @@ body {
   display: flex;
   min-width: 200px;
   min-height: 100dvh;
-  /* overflow-x: hidden; */
-  max-width: 100dvw;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 #root {
-  margin: 0 0;
-  max-width: 100dvw;
+  margin: 0;
+  max-width: 100%;
   width: 100%;
-  box-sizing: border-box;
   height: 100dvh;
   overflow-x: hidden;
 }

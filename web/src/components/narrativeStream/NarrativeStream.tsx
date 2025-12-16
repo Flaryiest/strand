@@ -53,10 +53,13 @@ function TypewriterText({
   }, [text, skipAnimation]);
 
   useEffect(() => {
-    // If skipping animation, call complete immediately (once)
+    // If skipping animation, call complete after a microtask to avoid setState during render
     if (skipAnimation && !hasCalledComplete.current) {
       hasCalledComplete.current = true;
-      onComplete?.();
+      // Use queueMicrotask to defer the callback outside of React's render phase
+      queueMicrotask(() => {
+        onComplete?.();
+      });
       return;
     }
     
@@ -64,7 +67,10 @@ function TypewriterText({
     if (skipAnimation || displayedLength >= textRef.current.length) {
       if (!hasCalledComplete.current) {
         hasCalledComplete.current = true;
-        onComplete?.();
+        // Defer callback to avoid setState during render
+        queueMicrotask(() => {
+          onComplete?.();
+        });
       }
       return;
     }

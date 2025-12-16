@@ -15,7 +15,7 @@ import styles from './chat.module.css';
 export default function ChatPage() {
   const navigate = useNavigate();
   const { chatId } = useParams<{ chatId?: string }>();
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, isInitializing, user } = useAuth();
   const { location, detectLocation } = useLocationStore();
   const {
     conversationUuid,
@@ -162,9 +162,8 @@ export default function ChatPage() {
     const loadConversation = async () => {
       if (!chatId) {
         // No chatId in URL, show fresh chat
-        if (conversationUuid) {
-          reset();
-        }
+        // Always reset to clear any stale state (e.g., stuck isStreaming)
+        reset();
         stopEventSource();
         setActiveRun(null);
         setShowInitialUI(true);
@@ -301,10 +300,17 @@ export default function ChatPage() {
     }
   }, [chatId, isLoading, isAuthenticated]);
 
-  // Cleanup EventSource on unmount
+  // Cleanup EventSource on unmount and reset streaming state
   useEffect(() => {
     return () => {
       stopEventSource();
+      // Reset streaming state to prevent stuck UI on navigation
+      const { isStreaming } = useChatStore.getState();
+      if (isStreaming) {
+        useChatStore.getState().setError(null);
+        // Reset isStreaming through a minimal state update
+        useChatStore.setState({ isStreaming: false });
+      }
     };
   }, []);
 
@@ -313,12 +319,22 @@ export default function ChatPage() {
     refreshConversations();
   }, [isAuthenticated]);
 
+  // Re-verify auth when chat page mounts to ensure fresh state
+  useEffect(() => {
+    const { verify, isInitializing } = useAuthStore.getState();
+    // Only re-verify if we're not in the initial load
+    if (!isInitializing) {
+      verify();
+    }
+  }, []);
+
   useEffect(() => {
     // Redirect to login if not authenticated and not viewing a public chat
-    if (!isLoading && !isAuthenticated && !chatId) {
+    // Wait for both initializing and loading to complete before redirecting
+    if (!isInitializing && !isLoading && !isAuthenticated && !chatId) {
       navigate('/login');
     }
-  }, [isLoading, isAuthenticated, navigate, chatId]);
+  }, [isInitializing, isLoading, isAuthenticated, navigate, chatId]);
 
   useEffect(() => {
     // Auto-detect location only if user is authenticated, has no location saved in their profile,
@@ -539,6 +555,19 @@ export default function ChatPage() {
         })
       });
 
+      if (response.status === 401) {
+        console.error('401 Unauthorized - Session may have expired');
+        // Re-verify auth state
+        await useAuthStore.getState().verify();
+        const authCheck = useAuthStore.getState().isAuthenticated;
+        
+        if (!authCheck) {
+          setError('Session expired. Please log in again.');
+          setTimeout(() => navigate('/login'), 2000);
+          return;
+        }
+      }
+
       if (!response.ok) {
         throw new Error('Failed to start run');
       }
@@ -572,12 +601,12 @@ export default function ChatPage() {
   };
 
   // Show loading state when loading chat or auth
-  if (isLoading || (!isAuthenticated && !chatId)) {
+  if (isInitializing || isLoading || (!isAuthenticated && !chatId)) {
     return (
       <div className={styles.loadingContainer}>
         <div className={styles.loadingSpinner}></div>
         <p>
-          {isLoading ? 'Loading your dashboard...' : 'Redirecting to login...'}
+          {isInitializing || isLoading ? 'Loading your dashboard...' : 'Redirecting to login...'}
         </p>
       </div>
     );

@@ -4,7 +4,8 @@
   flex-direction: column;
   gap: 0.25rem;
   width: 100%;
-  max-width: 720px;
+  max-width: min(720px, 100%);
+  min-width: 0;
   margin: 0 auto;
   padding: 0;
 }

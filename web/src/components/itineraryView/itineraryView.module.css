@@ -2,7 +2,8 @@
 
 .container {
   width: 100%;
-  max-width: 900px;
+  max-width: min(900px, 100%);
+  min-width: 0;
   margin: 0 auto;
   padding: 0 2rem;
 }

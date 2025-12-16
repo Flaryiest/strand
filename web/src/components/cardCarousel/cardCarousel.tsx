@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   RecommendationSlot,
   PlaceRecommendation
@@ -20,6 +20,11 @@ export default function CardCarousel({
   onViewOnMap
 }: CardCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState(slot.selectedIndex || 0);
+  
+  // Touch/swipe handling
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const minSwipeDistance = 50; // Minimum swipe distance in pixels
 
   // Combine primary with alternatives for navigation
   const allOptions = [slot.primary, ...slot.alternatives];
@@ -45,6 +50,34 @@ export default function CardCarousel({
     },
     [slot.slotId, onSelectionChange]
   );
+
+  // Touch event handlers for swipe
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchEndX.current = null;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && hasMultiple) {
+      goToNext();
+    } else if (isRightSwipe && hasMultiple) {
+      goToPrev();
+    }
+
+    // Reset
+    touchStartX.current = null;
+    touchEndX.current = null;
+  }, [hasMultiple, goToNext, goToPrev]);
 
   const getChoiceLabel = (index: number) => {
     if (index === 0) return 'Top Pick';
@@ -124,7 +157,12 @@ export default function CardCarousel({
       </div>
 
       {/* Current Card Display */}
-      <div className={styles.cardsWrapper}>
+      <div
+        className={styles.cardsWrapper}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <div
           className={styles.cardsTrack}
           style={{ transform: `translateX(-${selectedIndex * 100}%)` }}
@@ -171,7 +209,21 @@ export default function CardCarousel({
                   className={styles.thumbImage}
                 />
               ) : (
-                <div className={styles.thumbImage} />
+                <div className={styles.thumbImagePlaceholder}>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+                    <path d="M7 2v20" />
+                    <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3" />
+                    <path d="M21 7h-8" />
+                  </svg>
+                </div>
               )}
               <div className={styles.thumbInfo}>
                 <div className={styles.thumbName}>{place.name}</div>
