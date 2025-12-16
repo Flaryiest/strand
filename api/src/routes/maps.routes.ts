@@ -158,4 +158,48 @@ maps.get(
   }
 );
 
+// Photo proxy endpoint - fetches Google Places photos and serves them directly
+// This avoids CORS issues since the Places Photo API returns redirects
+maps.get('/photo', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { photoReference, maxwidth = '400' } = req.query;
+
+    if (!photoReference || typeof photoReference !== 'string') {
+      return res.status(400).json({ error: 'Photo reference is required' });
+    }
+
+    if (!process.env.GOOGLE_MAPS_API_KEY) {
+      return res
+        .status(500)
+        .json({ error: 'Google Maps API key not configured' });
+    }
+
+    const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxwidth}&photo_reference=${photoReference}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+
+    // Fetch the photo (Google returns a redirect, fetch follows it)
+    const photoResponse = await fetch(photoUrl);
+
+    if (!photoResponse.ok) {
+      return res.status(photoResponse.status).json({ error: 'Failed to fetch photo' });
+    }
+
+    // Get the content type from Google's response
+    const contentType = photoResponse.headers.get('content-type') || 'image/jpeg';
+
+    // Set caching headers (photos don't change often)
+    res.set({
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+      'Access-Control-Allow-Origin': '*'
+    });
+
+    // Stream the image data to the response
+    const arrayBuffer = await photoResponse.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (error) {
+    console.error('Photo proxy error:', error);
+    res.status(500).json({ error: 'Failed to fetch photo' });
+  }
+});
+
 export default maps;

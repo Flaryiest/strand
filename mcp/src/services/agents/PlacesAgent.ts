@@ -14,7 +14,7 @@ interface PlaceResult {
   };
   placeId: string;
   userRatingsTotal?: number;
-  photoUrl?: string;
+  photoReference?: string;
 }
 
 interface PlacesSearchParams {
@@ -112,11 +112,8 @@ export class PlacesAgent extends BaseToolAgent {
         return true;
       })
       .map((place: any) => {
-        // Build photo URL from photo_reference if available
-        let photoUrl: string | undefined;
-        if (place.photos && place.photos.length > 0 && place.photos[0].photo_reference) {
-          photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${config.googleMapsApiKey}`;
-        }
+        // Extract photo reference if available (frontend will use proxy to fetch)
+        const photoReference = place.photos?.[0]?.photo_reference || undefined;
         
         return {
           name: place.name,
@@ -130,7 +127,7 @@ export class PlacesAgent extends BaseToolAgent {
           },
           placeId: place.place_id,
           userRatingsTotal: place.user_ratings_total,
-          photoUrl
+          photoReference
         };
       });
     
