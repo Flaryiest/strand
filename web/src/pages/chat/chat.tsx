@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/auth';
 import { baseUrl } from '@/utils/baseUrl';
 import { useLocationStore } from '@/stores/location';
-import { useChatStore } from '@/stores/chat';
+import { useChatStore, useCurrentStreamState, useCurrentMessages } from '@/stores/chat';
 import Sidebar from '@/components/sidebar/sidebar';
 import Topbar from '@/components/topbar/topbar';
 import LocationInput from '@/components/locationInput/locationInput';
@@ -17,18 +17,13 @@ export default function ChatPage() {
   const { chatId } = useParams<{ chatId?: string }>();
   const { isAuthenticated, isLoading, isInitializing, user } = useAuth();
   const { location, detectLocation } = useLocationStore();
+  
+  // Global store actions and state
   const {
-    conversationUuid,
-    messages,
-    isStreaming,
-    streamingEvents,
-    streamingItinerary,
-    error,
+    currentConversationUuid,
     conversations,
     isLoadingConversations,
-    activeAssistantMessageId,
-    setConversationId,
-    setConversationUuid,
+    setCurrentConversation,
     setConversations,
     setLoadingConversations,
     setActiveRun,
@@ -37,9 +32,19 @@ export default function ChatPage() {
     addUserMessage,
     addStreamEvent,
     completeStreaming,
-    setError,
-    reset
+    setError
   } = useChatStore();
+  
+  // Per-conversation state (reactive hooks)
+  const currentStreamState = useCurrentStreamState();
+  const messages = useCurrentMessages();
+  
+  // Derived state from currentStreamState
+  const isStreaming = currentStreamState.isStreaming;
+  const streamingEvents = currentStreamState.streamingEvents;
+  const streamingItinerary = currentStreamState.streamingItinerary;
+  const error = currentStreamState.error;
+  const activeAssistantMessageId = currentStreamState.activeAssistantMessageId;
 
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -52,57 +57,60 @@ export default function ChatPage() {
   const [isPublicView, setIsPublicView] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
+  
+  // Map of conversationUuid -> EventSource for multi-query support
+  const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
 
   const runLastIdStorageKey = (runId: string) =>
     `strand:chatRun:${runId}:lastId`;
 
-  // Track the runId that the current EventSource is listening to
-  const activeRunIdRef = useRef<string | null>(null);
-
-  const stopEventSource = () => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+  const stopEventSource = (conversationUuid: string) => {
+    const es = eventSourcesRef.current.get(conversationUuid);
+    if (es) {
+      es.close();
+      eventSourcesRef.current.delete(conversationUuid);
     }
-    activeRunIdRef.current = null;
   };
 
-  const isEventSourceActive = () => {
-    const es = eventSourceRef.current;
+  const stopAllEventSources = () => {
+    for (const [uuid, es] of eventSourcesRef.current.entries()) {
+      es.close();
+      eventSourcesRef.current.delete(uuid);
+    }
+  };
+
+  const isEventSourceActive = (conversationUuid: string) => {
+    const es = eventSourcesRef.current.get(conversationUuid);
     if (!es) return false;
-    // EventSource.readyState: 0 CONNECTING, 1 OPEN, 2 CLOSED
     return es.readyState !== EventSource.CLOSED;
   };
 
   const startEventSource = (
+    convUuid: string,
     runId: string,
     replayFromStart: boolean = false
   ) => {
-    stopEventSource();
-
-    // Track which run this EventSource is for
-    activeRunIdRef.current = runId;
+    // Close any existing EventSource for this conversation
+    stopEventSource(convUuid);
 
     // If replaying from start (e.g., page refresh recovery), ignore sessionStorage
-    // and fetch all events from the beginning
     const afterId = replayFromStart
       ? '0-0'
       : sessionStorage.getItem(runLastIdStorageKey(runId)) || '0-0';
     const url = `${baseUrl}/chat/runs/${runId}/stream?afterId=${encodeURIComponent(afterId)}`;
 
     const es = new EventSource(url, { withCredentials: true });
-    eventSourceRef.current = es;
+    eventSourcesRef.current.set(convUuid, es);
 
     es.onmessage = (evt) => {
-      // Ignore events if this EventSource is no longer for the active run
-      // This prevents stale events from a previous run polluting the current chat
-      if (activeRunIdRef.current !== runId) {
-        console.log(`[EventSource] Ignoring event for stale run ${runId}, active run is ${activeRunIdRef.current}`);
+      // Verify this EventSource is still registered for this conversation
+      if (eventSourcesRef.current.get(convUuid) !== es) {
+        console.log(`[EventSource] Ignoring event for replaced EventSource on ${convUuid}`);
         return;
       }
 
@@ -114,16 +122,16 @@ export default function ChatPage() {
 
         if (eventData.type === 'done') {
           // Process the done event first to capture the itinerary
-          addStreamEvent(eventData);
+          addStreamEvent(convUuid, eventData);
           sessionStorage.removeItem(runLastIdStorageKey(runId));
-          completeStreaming();
+          completeStreaming(convUuid);
           refreshConversations();
-          stopEventSource();
+          stopEventSource(convUuid);
         } else if (eventData.type === 'error') {
-          setError(eventData.data?.message || 'Stream error');
-          stopEventSource();
+          setError(convUuid, eventData.data?.message || 'Stream error');
+          stopEventSource(convUuid);
         } else {
-          addStreamEvent(eventData);
+          addStreamEvent(convUuid, eventData);
         }
       } catch (e) {
         console.error('EventSource parse error:', e);
@@ -162,20 +170,25 @@ export default function ChatPage() {
     const loadConversation = async () => {
       if (!chatId) {
         // No chatId in URL, show fresh chat
-        // Always reset to clear any stale state (e.g., stuck isStreaming)
-        reset();
-        stopEventSource();
-        setActiveRun(null);
+        // Set current conversation to null but don't reset everything
+        setCurrentConversation(null);
         setShowInitialUI(true);
         return;
       }
 
-      // Check if we already have this conversation loaded
-      if (conversationUuid === chatId && messages.length > 0) {
+      // Set current conversation UUID for this view
+      setCurrentConversation(chatId);
+
+      // Check if we already have this conversation loaded with messages
+      const store = useChatStore.getState();
+      const existingData = store.conversationData.get(chatId);
+      const existingStream = store.streamStates.get(chatId);
+      
+      if (existingData && existingData.messages.length > 0) {
         setShowInitialUI(false);
 
         // If there's an active run for this conversation, make sure we are attached.
-        const lastAssistant = [...messages]
+        const lastAssistant = [...existingData.messages]
           .reverse()
           .find((m) => m.role === 'assistant');
         const runId = lastAssistant?.metadata?.runId;
@@ -185,17 +198,18 @@ export default function ChatPage() {
 
         if (isStreamingMsg) {
           // Only (re)attach if we aren't already attached.
-          if (!isEventSourceActive()) {
+          if (!isEventSourceActive(chatId)) {
             resumeRunStreaming(
+              chatId,
               runId,
               lastAssistant.id,
               lastAssistant.content || ''
             );
-            startEventSource(runId, true); // Replay all events from start
+            startEventSource(chatId, runId, true); // Replay all events from start
           }
-        } else {
-          stopEventSource();
-          setActiveRun(null);
+        } else if (!existingStream?.isStreaming) {
+          stopEventSource(chatId);
+          setActiveRun(chatId, null);
         }
 
         return;
@@ -213,9 +227,9 @@ export default function ChatPage() {
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.conversation) {
-              setConversationId(data.conversation.id);
-              setConversationUuid(data.conversation.uuid);
+              setCurrentConversation(chatId, data.conversation.id);
               setMessages(
+                chatId,
                 data.conversation.messages.map((msg: any) => ({
                   id: msg.id,
                   role: msg.role,
@@ -224,7 +238,8 @@ export default function ChatPage() {
                   itinerary: msg.metadata?.itinerary || undefined,
                   metadata: msg.metadata || undefined,
                   createdAt: msg.createdAt
-                }))
+                })),
+                data.conversation.id
               );
               setShowInitialUI(false);
               setIsPublicView(false);
@@ -240,14 +255,15 @@ export default function ChatPage() {
                 lastAssistant?.metadata?.runId
               ) {
                 resumeRunStreaming(
+                  chatId,
                   lastAssistant.metadata.runId,
                   lastAssistant.id,
                   lastAssistant.content || ''
                 );
-                startEventSource(lastAssistant.metadata.runId, true); // Replay all events from start on refresh
+                startEventSource(chatId, lastAssistant.metadata.runId, true); // Replay all events from start on refresh
               } else {
-                stopEventSource();
-                setActiveRun(null);
+                stopEventSource(chatId);
+                setActiveRun(chatId, null);
               }
 
               // Brief delay for smooth transition
@@ -262,8 +278,9 @@ export default function ChatPage() {
         if (publicResponse.ok) {
           const data = await publicResponse.json();
           if (data.success && data.conversation) {
-            setConversationUuid(data.conversation.uuid);
+            setCurrentConversation(chatId);
             setMessages(
+              chatId,
               data.conversation.messages.map((msg: any) => ({
                 id: msg.id,
                 role: msg.role,
@@ -277,7 +294,7 @@ export default function ChatPage() {
             setShowInitialUI(false);
             setIsPublicView(true);
             setShouldScrollToBottom(true);
-            stopEventSource();
+            stopEventSource(chatId);
             // Brief delay for smooth transition
             setTimeout(() => setIsTransitioning(false), 150);
             return;
@@ -285,12 +302,12 @@ export default function ChatPage() {
         }
 
         // Conversation not found
-        setError('Conversation not found');
+        setError(chatId, 'Conversation not found');
         navigate('/chat');
         setIsTransitioning(false);
       } catch (err) {
         console.error('Error loading conversation:', err);
-        setError('Failed to load conversation');
+        setError(chatId, 'Failed to load conversation');
         setIsTransitioning(false);
       }
     };
@@ -300,17 +317,10 @@ export default function ChatPage() {
     }
   }, [chatId, isLoading, isAuthenticated]);
 
-  // Cleanup EventSource on unmount and reset streaming state
+  // Cleanup all EventSources on unmount
   useEffect(() => {
     return () => {
-      stopEventSource();
-      // Reset streaming state to prevent stuck UI on navigation
-      const { isStreaming } = useChatStore.getState();
-      if (isStreaming) {
-        useChatStore.getState().setError(null);
-        // Reset isStreaming through a minimal state update
-        useChatStore.setState({ isStreaming: false });
-      }
+      stopAllEventSources();
     };
   }, []);
 
@@ -472,7 +482,7 @@ export default function ChatPage() {
         const authCheck = useAuthStore.getState().isAuthenticated;
 
         if (!authCheck) {
-          setError('Session expired. Please log in again.');
+          setLocalError('Session expired. Please log in again.');
           setTimeout(() => navigate('/login'), 2000);
         }
         return null;
@@ -505,7 +515,7 @@ export default function ChatPage() {
     } catch (err) {
       console.error('Create conversation error:', err);
 
-      setError(
+      setLocalError(
         err instanceof Error
           ? err.message
           : 'Failed to start conversation. Please try refreshing the page.'
@@ -524,12 +534,11 @@ export default function ChatPage() {
     }
 
     // Create conversation if needed
-    let convUuid = conversationUuid;
+    let convUuid = currentConversationUuid;
     if (!convUuid) {
       const newConv = await createConversation();
       if (!newConv) return;
-      setConversationId(newConv.id);
-      setConversationUuid(newConv.uuid);
+      setCurrentConversation(newConv.uuid, newConv.id);
       convUuid = newConv.uuid;
 
       // Navigate to the new chat URL
@@ -537,7 +546,7 @@ export default function ChatPage() {
     }
 
     // Add user message to UI
-    addUserMessage(trimmedInput);
+    addUserMessage(convUuid, trimmedInput);
     setInputValue('');
 
     // Start run from API, then subscribe via EventSource
@@ -562,7 +571,7 @@ export default function ChatPage() {
         const authCheck = useAuthStore.getState().isAuthenticated;
         
         if (!authCheck) {
-          setError('Session expired. Please log in again.');
+          setError(convUuid, 'Session expired. Please log in again.');
           setTimeout(() => navigate('/login'), 2000);
           return;
         }
@@ -577,12 +586,12 @@ export default function ChatPage() {
         throw new Error(data.error || 'Failed to start run');
       }
 
-      setActiveRun(data.runId, data.assistantMessageId || null);
-      startEventSource(data.runId);
+      setActiveRun(convUuid, data.runId, data.assistantMessageId || null);
+      startEventSource(convUuid, data.runId);
     } catch (err) {
       console.error('Stream error:', err);
-      setError('Failed to get response. Please try again.');
-      stopEventSource();
+      setError(convUuid, 'Failed to get response. Please try again.');
+      stopEventSource(convUuid);
     }
   };
 
@@ -594,7 +603,7 @@ export default function ChatPage() {
   };
 
   const handleNewChat = () => {
-    reset();
+    setCurrentConversation(null);
     setShowInitialUI(true);
     navigate('/chat');
     setInputValue('');
@@ -633,7 +642,7 @@ export default function ChatPage() {
         handleNewChat();
         closeSidebar();
       },
-      active: activeView === 'chat' && !conversationUuid
+      active: activeView === 'chat' && !currentConversationUuid
     },
     {
       id: 'saved',
@@ -708,7 +717,7 @@ export default function ChatPage() {
           navigate(`/chat/${uuid}`);
           closeSidebar();
         }}
-        activeConversationUuid={conversationUuid}
+        activeConversationUuid={currentConversationUuid}
       />
       {isMobile && sidebarOpen && (
         <div className={styles.backdrop} onClick={closeSidebar} />
@@ -795,7 +804,7 @@ export default function ChatPage() {
               )}
 
               {/* Error display */}
-              {error && (
+              {(error || localError) && (
                 <div className={styles.errorMessage}>
                   <svg
                     width="20"
@@ -809,7 +818,7 @@ export default function ChatPage() {
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
-                  <span>{error}</span>
+                  <span>{error || localError}</span>
                 </div>
               )}
 
