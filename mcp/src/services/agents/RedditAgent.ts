@@ -111,6 +111,27 @@ export class RedditAgent extends BaseToolAgent {
     
     return q;
   }
+  
+  /**
+   * Add recency hint to query if not already present
+   * Helps surface more recent Reddit threads
+   */
+  private addRecencyHint(query: string): string {
+    const currentYear = new Date().getFullYear();
+    const lastYear = currentYear - 1;
+    
+    // Check if query already has a year
+    const hasYear = /\b20[2-3]\d\b/.test(query);
+    if (hasYear) return query;
+    
+    // Check if query already has recency terms
+    const hasRecency = /\b(recent|latest|new|now|currently|this year)\b/i.test(query);
+    if (hasRecency) return query;
+    
+    // Add year hint - use "2024 OR 2025" style to be flexible
+    // Keep it short to not bloat the query
+    return `${query} ${lastYear}`;
+  }
 
   /**
    * Use AI to find relevant subreddits for any location
@@ -180,37 +201,205 @@ Your response for "${simplifiedGoal}" in ${city}:`;
   }
 
   protected async search(params: RedditSearchParams): Promise<RedditSearchResult[]> {
-    // Use web search with site:reddit.com as a fallback
-    // Reddit's official API requires OAuth which is complex for this use case
-    if (!config.serperApiKey) {
-      console.warn('[RedditAgent] Serper API key not configured, cannot search Reddit');
-      return [];
-    }
-
     const excludeUrls = params.excludeUrls || this.currentContext?.seenUrls;
+    const subreddits = params.subreddits || ['all'];
     
-    // ROBUST: Sanitize query right before API call (catches refinements too)
+    // Sanitize query for both Reddit native and Serper
     const cleanQuery = this.sanitizeSerperQuery(params.query);
     console.log(`[RedditAgent] Sanitized query: "${params.query}" → "${cleanQuery}"`);
 
-    // Build all search queries upfront
-    const subreddits = params.subreddits || ['all'];
+    // Try Reddit's native search first (better relevance, native time filtering)
+    let results = await this.searchRedditNative(cleanQuery, subreddits, params, excludeUrls);
+    
+    // Fallback to Serper if Reddit native returned too few results
+    if (results.length < 3) {
+      console.log(`[RedditAgent] Reddit native returned ${results.length} results, falling back to Serper`);
+      const serperResults = await this.searchSerper(cleanQuery, subreddits, params, excludeUrls);
+      
+      // Merge results, avoiding duplicates
+      const existingUrls = new Set(results.map(r => r.url));
+      for (const r of serperResults) {
+        if (!existingUrls.has(r.url)) {
+          results.push(r);
+          existingUrls.add(r.url);
+        }
+      }
+    }
+
+    // Dedupe by URL (in case of any overlap)
+    const seen = new Set<string>();
+    const deduped = results.filter(r => {
+      if (seen.has(r.url)) return false;
+      seen.add(r.url);
+      return true;
+    });
+    
+    // Add new URLs to the shared seen set
+    if (excludeUrls) {
+      for (const r of deduped) {
+        excludeUrls.add(r.url);
+      }
+    }
+
+    // Fetch thread content in PARALLEL (fetch more than we need for filtering)
+    const maxThreadsToFetch = Math.min(deduped.length, 8);
+    const threadsToFetch = deduped.slice(0, maxThreadsToFetch);
+    await Promise.all(threadsToFetch.map(async (r) => {
+      try {
+        r.thread = await fetchRedditThread(r.url, { maxComments: 25 });
+      } catch (e) {
+        r.threadError = e instanceof Error ? e.message : 'Unknown error';
+      }
+    }));
+
+    // Apply quality filters with fallback to avoid being too restrictive
+    const filtered = this.filterByQuality(deduped);
+    
+    console.log(`[RedditAgent] Found ${deduped.length} results, ${filtered.length} after quality filter`);
+    return filtered;
+  }
+
+  /**
+   * Search using Reddit's native JSON search endpoint (no API key needed)
+   * Better relevance sorting and native time filtering
+   */
+  private async searchRedditNative(
+    query: string,
+    subreddits: string[],
+    params: RedditSearchParams,
+    excludeUrls?: Set<string>
+  ): Promise<RedditSearchResult[]> {
+    const timeFilter = params.time || 'year';
+    const sort = params.sort || 'relevance';
+    
+    const searchPromises = subreddits.map(async (subreddit) => {
+      const cleanSub = subreddit.replace(/^r\//i, '');
+      
+      // Build Reddit search URL
+      // For 'all', search across all of Reddit; otherwise restrict to subreddit
+      const baseUrl = cleanSub === 'all'
+        ? 'https://www.reddit.com/search.json'
+        : `https://www.reddit.com/r/${cleanSub}/search.json`;
+      
+      const searchParams = new URLSearchParams({
+        q: query,
+        sort: sort,
+        t: timeFilter,
+        limit: '25',
+        restrict_sr: cleanSub === 'all' ? '0' : '1',
+        type: 'link' // Only posts, not comments
+      });
+      
+      const url = `${baseUrl}?${searchParams.toString()}`;
+      console.log(`[RedditAgent] Reddit native search: ${cleanSub} - "${query}"`);
+      
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'StrandAI/1.0 (location discovery bot)',
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          // Reddit might rate limit or block - this is expected sometimes
+          if (response.status === 429) {
+            console.warn(`[RedditAgent] Reddit rate limited (429) for ${cleanSub}`);
+          } else {
+            console.warn(`[RedditAgent] Reddit native error: ${response.status} for ${cleanSub}`);
+          }
+          return [];
+        }
+        
+        const data: any = await response.json();
+        const results: RedditSearchResult[] = [];
+        
+        const children = data?.data?.children || [];
+        for (const child of children) {
+          const post = child?.data;
+          if (!post) continue;
+          
+          // Build the full URL
+          const postUrl = `https://www.reddit.com${post.permalink}`;
+          
+          // Skip already-seen URLs
+          if (excludeUrls && excludeUrls.has(postUrl)) {
+            continue;
+          }
+          
+          // Skip non-text posts (videos, images only) - we want discussions
+          if (post.is_video || (post.post_hint === 'image' && !post.selftext)) {
+            continue;
+          }
+          
+          results.push({
+            title: post.title || '',
+            subreddit: post.subreddit || cleanSub,
+            url: postUrl,
+            snippet: (post.selftext || '').slice(0, 300),
+            // We'll fetch full thread data later, but store basic metadata
+            thread: {
+              id: post.id,
+              url: postUrl,
+              subreddit: post.subreddit,
+              title: post.title,
+              author: post.author,
+              selftext: post.selftext?.slice(0, 2000),
+              score: post.score || 0,
+              numComments: post.num_comments || 0,
+              createdUtc: post.created_utc || 0,
+              permalink: post.permalink,
+              comments: [] // Will be populated if we fetch full thread
+            }
+          });
+        }
+        
+        return results;
+      } catch (error) {
+        console.error(`[RedditAgent] Reddit native error for ${cleanSub}:`, error);
+        return [];
+      }
+    });
+    
+    // Wait for all searches in parallel
+    const allResults = await Promise.all(searchPromises);
+    return allResults.flat();
+  }
+
+  /**
+   * Fallback: Search using Serper API with site:reddit.com
+   * Good for discovery when Reddit native fails or is rate limited
+   */
+  private async searchSerper(
+    query: string,
+    subreddits: string[],
+    params: RedditSearchParams,
+    excludeUrls?: Set<string>
+  ): Promise<RedditSearchResult[]> {
+    if (!config.serperApiKey) {
+      console.warn('[RedditAgent] Serper API key not configured, skipping fallback');
+      return [];
+    }
+    
+    // Add recency hint for Serper (since it doesn't have native time filter)
+    const queryWithRecency = this.addRecencyHint(query);
+    
     const searchQueries = subreddits.map(subreddit => {
       const cleanSub = subreddit.replace(/^r\//i, '');
       return {
         subreddit: cleanSub,
         query: cleanSub === 'all' 
-          ? `${cleanQuery} site:reddit.com`
-          : `${cleanQuery} site:reddit.com/r/${cleanSub}`
+          ? `${queryWithRecency} site:reddit.com`
+          : `${queryWithRecency} site:reddit.com/r/${cleanSub}`
       };
     });
 
-    // Search all subreddits in PARALLEL
     const excludeCount = excludeUrls?.size || 0;
     const requestNum = Math.min(10 + excludeCount, 30);
     
-    const searchPromises = searchQueries.map(async ({ query, subreddit }) => {
-      console.log(`[RedditAgent] Searching: ${query}`);
+    const searchPromises = searchQueries.map(async ({ query: searchQuery, subreddit }) => {
+      console.log(`[RedditAgent] Serper fallback: ${searchQuery}`);
       try {
         const response = await fetch('https://google.serper.dev/search', {
           method: 'POST',
@@ -219,7 +408,7 @@ Your response for "${simplifiedGoal}" in ${city}:`;
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            q: query,
+            q: searchQuery,
             num: requestNum
           })
         });
@@ -232,7 +421,6 @@ Your response for "${simplifiedGoal}" in ${city}:`;
         const data: any = await response.json();
         const results: RedditSearchResult[] = [];
 
-        // Transform results, filtering out already-seen URLs
         for (const item of data.organic || []) {
           if (!item.link?.includes('reddit.com')) continue;
           
@@ -253,43 +441,91 @@ Your response for "${simplifiedGoal}" in ${city}:`;
         }
         return results;
       } catch (error) {
-        console.error(`[RedditAgent] Error searching ${subreddit}:`, error);
+        console.error(`[RedditAgent] Serper error for ${subreddit}:`, error);
         return [];
       }
     });
 
-    // Wait for all searches to complete in parallel
     const allResults = await Promise.all(searchPromises);
-    const results = allResults.flat();
-
-    // Dedupe by URL
-    const seen = new Set<string>();
-    const deduped = results.filter(r => {
-      if (seen.has(r.url)) return false;
-      seen.add(r.url);
-      return true;
+    return allResults.flat();
+  }
+  
+  /**
+   * Filter results by recency and engagement, with fallback to go broad
+   * if filtering removes too many results
+   */
+  private filterByQuality(results: RedditSearchResult[]): RedditSearchResult[] {
+    const now = Date.now() / 1000; // Unix timestamp
+    const THREE_YEARS_AGO = now - (3 * 365 * 24 * 60 * 60);
+    const ONE_YEAR_AGO = now - (365 * 24 * 60 * 60);
+    
+    // Engagement thresholds (soft - we'll relax if needed)
+    const MIN_UPVOTES_STRICT = 5;
+    const MIN_COMMENTS_STRICT = 3;
+    const MIN_UPVOTES_LOOSE = 1;
+    const MIN_COMMENTS_LOOSE = 1;
+    
+    // Score each result for sorting
+    const scored = results.map(r => {
+      const thread = r.thread;
+      const createdUtc = thread?.createdUtc || 0;
+      const upvotes = thread?.score || 0;
+      const comments = thread?.numComments || 0;
+      
+      // Recency score (0-3)
+      let recencyScore = 0;
+      if (createdUtc > ONE_YEAR_AGO) recencyScore = 3;
+      else if (createdUtc > THREE_YEARS_AGO) recencyScore = 2;
+      else if (createdUtc > 0) recencyScore = 1;
+      // If no thread data (fetch failed), give benefit of doubt
+      else if (!thread) recencyScore = 1.5;
+      
+      // Engagement score (0-3)
+      let engagementScore = 0;
+      if (upvotes >= 20 && comments >= 10) engagementScore = 3;
+      else if (upvotes >= MIN_UPVOTES_STRICT && comments >= MIN_COMMENTS_STRICT) engagementScore = 2;
+      else if (upvotes >= MIN_UPVOTES_LOOSE || comments >= MIN_COMMENTS_LOOSE) engagementScore = 1;
+      // If no thread data, give benefit of doubt
+      else if (!thread) engagementScore = 1;
+      
+      // Relevance bonus: title contains useful keywords (not just "question" posts)
+      const title = (thread?.title || r.title || '').toLowerCase();
+      const hasUsefulTitle = /best|recommend|favorite|top|where|good|great|hidden gem/i.test(title);
+      const isJustQuestion = /^(where|what|anyone|has anyone|does anyone)\b/i.test(title) && !hasUsefulTitle;
+      const relevanceBonus = hasUsefulTitle ? 1 : (isJustQuestion ? -0.5 : 0);
+      
+      const totalScore = recencyScore + engagementScore + relevanceBonus;
+      
+      return { result: r, recencyScore, engagementScore, totalScore, createdUtc, upvotes, comments };
     });
     
-    // Add new URLs to the shared seen set
-    if (excludeUrls) {
-      for (const r of deduped) {
-        excludeUrls.add(r.url);
-      }
+    // Sort by total score descending
+    scored.sort((a, b) => b.totalScore - a.totalScore);
+    
+    // Try strict filter first: recent (< 3 years) AND decent engagement
+    const strictFiltered = scored.filter(s => 
+      s.recencyScore >= 2 && s.engagementScore >= 1
+    );
+    
+    // If strict filter gives us at least 3 results, use it
+    if (strictFiltered.length >= 3) {
+      console.log(`[RedditAgent] Using strict filter: ${strictFiltered.length} quality results`);
+      return strictFiltered.slice(0, 6).map(s => s.result);
     }
-
-    // Fetch thread content in PARALLEL
-    const maxThreads = 5;
-    const threadsToFetch = deduped.slice(0, maxThreads);
-    await Promise.all(threadsToFetch.map(async (r) => {
-      try {
-        r.thread = await fetchRedditThread(r.url, { maxComments: 25 });
-      } catch (e) {
-        r.threadError = e instanceof Error ? e.message : 'Unknown error';
-      }
-    }));
-
-    console.log(`[RedditAgent] Found ${deduped.length} new Reddit results`);
-    return deduped;
+    
+    // Fallback: looser filter - just need SOME signal of quality
+    const looseFiltered = scored.filter(s => 
+      s.totalScore >= 1.5 // At least some positive signals
+    );
+    
+    if (looseFiltered.length >= 2) {
+      console.log(`[RedditAgent] Using loose filter: ${looseFiltered.length} results`);
+      return looseFiltered.slice(0, 6).map(s => s.result);
+    }
+    
+    // Last resort: return top scored results regardless of filters
+    console.log(`[RedditAgent] Filters too strict, returning top ${Math.min(5, scored.length)} by score`);
+    return scored.slice(0, 5).map(s => s.result);
   }
 
   protected async evaluateResults(
