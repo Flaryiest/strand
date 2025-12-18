@@ -14,13 +14,18 @@ CURRENT RESULTS:
 Evaluate these results and determine if they are sufficient for the user's needs.
 
 Assessment criteria:
-1. QUANTITY: Do we have at least 5 quality options that genuinely match the goal?
-2. RATINGS: Are there options with 4.0+ ratings and meaningful review counts (10+)?
-3. VARIETY: Are there different price points/styles/vibes represented?
-4. RELEVANCE: Do results actually match the search intent? (e.g., if looking for "romantic dinner", are these actually romantic spots, not just restaurants?)
-5. QUALITY: Would you confidently recommend these to a friend?
+1. QUANTITY: Do we have at least 3-5 options that match the goal? (3 is often enough!)
+2. RATINGS: Are there options with 3.5+ ratings? (4.0+ is ideal but not required)
+3. VARIETY: Is there at least some variety? (Not all identical options)
+4. RELEVANCE: Do most results actually match the search intent?
+5. QUALITY: Could you recommend at least 2-3 of these?
 
-If NOT sufficient, suggest refinements:
+IMPORTANT: Be CONSERVATIVE about requesting refinements!
+- If you have 3+ decent options, mark as sufficient=true
+- Don't seek perfection - "good enough" data is fine
+- Only request refinements if results are clearly poor or completely miss the mark
+
+If NOT sufficient (and ONLY if truly inadequate), suggest refinements:
 - Expand search radius (current: {radius}m) if too few results
 - Try different place types that better match the goal
 - Modify query to be more specific or broader
@@ -52,17 +57,21 @@ CURRENT RESULTS:
 Evaluate if these web results provide good recommendations.
 
 Assessment criteria:
-1. RECENCY: Are articles from the last 2 years? (Check dates in snippets/titles)
-2. SPECIFICITY: Do they name specific places, not just generic advice?
-3. CREDIBILITY: Are sources reputable (travel blogs, news sites, review sites)?
-4. ACTIONABILITY: Can user actually visit recommended places?
-5. VARIETY: Multiple perspectives/sources?
+1. RECENCY: Are most articles reasonably recent? (last 3 years is fine)
+2. SPECIFICITY: Do at least some results name specific places?
+3. CREDIBILITY: Are sources reasonably trustworthy?
+4. ACTIONABILITY: Can user visit at least some recommended places?
+5. VARIETY: At least 2-3 different sources?
 
-If NOT sufficient, suggest refinements:
+IMPORTANT: Be CONSERVATIVE about requesting refinements!
+- If you have 2-3 decent articles with place recommendations, mark as sufficient=true
+- Don't seek perfection - some useful info is enough
+- Only request refinements if results are truly useless or off-topic
+
+If NOT sufficient (and ONLY if truly inadequate), suggest refinements:
 - Add year to query (e.g., "2024")
 - Add "best" or "top" to query
 - Search for specific subcategories
-- Try "reddit" or "reviews" in query
 
 Respond with ONLY valid JSON (no markdown):
 {
@@ -95,13 +104,18 @@ CURRENT RESULTS:
 Reddit is valuable for authentic local opinions. Evaluate these results.
 
 Assessment criteria:
-1. QUANTITY: Do we have at least 3 relevant threads?
-2. RECENCY: Are posts from the last 2-3 years?
-3. ENGAGEMENT: Do threads have good discussion (multiple comments)?
-4. SPECIFICITY: Do responses name actual places with details?
-5. CONSENSUS: Do multiple commenters agree on recommendations?
+1. QUANTITY: Do we have at least 1-2 relevant threads? (Even 1 good thread is valuable!)
+2. RECENCY: Are posts from the last 3-4 years? (Reddit wisdom ages slowly)
+3. ENGAGEMENT: Is there any discussion? (Even a few comments can be useful)
+4. SPECIFICITY: Does at least one response name an actual place?
+5. AUTHENTICITY: Do responses seem like real local opinions?
 
-If NOT sufficient, suggest refinements:
+IMPORTANT: Be CONSERVATIVE about requesting refinements!
+- If you have even 1 relevant thread with place names, mark as sufficient=true
+- Reddit data is bonus context, not essential - don't over-optimize
+- Only request refinements if search returned nothing relevant at all
+
+If NOT sufficient (and ONLY if truly no useful results), suggest refinements:
 - Try different subreddits (local city subs, food subs, travel subs)
 - Modify search terms (keep it SHORT - max 5 words)
 - Search for specific aspects (e.g., "cheap", "romantic", "hidden gem")
@@ -165,8 +179,12 @@ Consider:
 - Web search is best for: Recent reviews, travel articles, curated lists
 - Reddit is best for: Local opinions, hidden gems, honest reviews, budget tips
 
-For simple queries (e.g., "coffee shops near me"), Places API alone may suffice.
-For complex queries (e.g., "romantic date night in SF"), all three add value.
+IMPORTANT: Start simple! Don't over-query.
+- Simple queries (e.g., "coffee shops"): Places API alone is usually enough
+- Moderate queries (e.g., "best brunch spots"): Places + maybe one other source
+- Complex queries (e.g., "romantic date night"): Use all three only if truly needed
+
+The goal is FAST results, not exhaustive coverage. You can always get more data later if needed.
 
 Respond with ONLY valid JSON (no markdown):
 {
@@ -201,14 +219,21 @@ REDDIT RESULTS:
 
 Evaluate if we have enough quality data to make strong recommendations.
 
+IMPORTANT: Be CONSERVATIVE about requesting additional searches. Each search costs time and money.
+- If you have 5+ places with ratings, that's usually enough for Places
+- If you have 3+ Reddit threads with comments, that's usually enough for opinions
+- If you have 3+ web articles, that's usually enough for context
+- "Perfect" data is not the goal - "good enough to recommend" is the goal
+
 Assessment criteria:
 1. CROSS-VALIDATION: Do multiple sources agree on top recommendations?
 2. DATA COMPLETENESS: Do we have addresses, ratings, and context for top picks?
 3. VARIETY: Are there different options for different preferences?
 4. CONFIDENCE: Can we confidently rank recommendations?
-5. GAPS: Is any critical information missing?
+5. GAPS: Is any CRITICAL information missing? (Not "nice to have" - actually critical)
 
-If NOT sufficient, specify which agent(s) need to search more and for what.
+Set sufficient=true if you can make a confident recommendation, even if data isn't perfect.
+Only set sufficient=false if you truly cannot recommend anything with current data.
 
 Respond with ONLY valid JSON (no markdown):
 {
@@ -227,16 +252,12 @@ Respond with ONLY valid JSON (no markdown):
       "whyPicked": "Brief reason this stood out (e.g., 'Multiple Reddit comments praised their traditional preparation')"
     }
   ],
-  "gaps": ["what's missing"],
+  "gaps": ["what's missing - only list CRITICAL gaps, not nice-to-haves"],
   "needsMoreMessage": "If not sufficient, a natural message about what else you're looking for. E.g., 'The ratings are good but I want to check if locals actually recommend these...' (only include if sufficient=false)",
-  "additionalQueries": [
-    {
-      "agent": "places_agent" | "web_agent" | "reddit_agent",
-      "goal": "What to search for",
-      "params": {}
-    }
-  ]
-}`;
+  "additionalQueries": []
+}
+
+NOTE: Only populate additionalQueries if sufficient=false AND you have a specific, actionable search that would fill a critical gap. Leave it as empty array [] otherwise.`;
 
 export const SYNTHESIS_PROMPT = `You are Strand AI, thinking through recommendations conversationally.
 

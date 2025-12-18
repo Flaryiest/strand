@@ -31,6 +31,36 @@ export class RedditAgent extends BaseToolAgent {
   // Store context for access in search method
   private currentContext: AgentContext | null = null;
 
+  /**
+   * Early exit heuristic: If we have 3+ engaged threads from recent years, skip LLM eval
+   */
+  protected checkEarlyExit(results: any[], context: AgentContext): any[] | null {
+    if (results.length < 3) return null;
+    
+    const now = Date.now() / 1000;
+    const TWO_YEARS_AGO = now - (2 * 365 * 24 * 60 * 60);
+    
+    // Count threads with good engagement and recency
+    const goodThreads = results.filter((r: any) => {
+      const thread = r.thread;
+      if (!thread) return false;
+      
+      const isRecent = thread.createdUtc > TWO_YEARS_AGO;
+      const hasEngagement = (thread.score >= 5 || thread.numComments >= 3);
+      
+      return isRecent && hasEngagement;
+    });
+    
+    // Need at least 3 good threads to early exit
+    if (goodThreads.length >= 3) {
+      console.log(`[RedditAgent] Early exit: ${goodThreads.length} quality threads found`);
+      // Return top results, prioritizing good threads
+      return results.slice(0, 8);
+    }
+    
+    return null;
+  }
+
   protected async getInitialParams(context: AgentContext): Promise<Record<string, any>> {
     // Store context for use in search
     this.currentContext = context;

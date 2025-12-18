@@ -108,6 +108,11 @@ export class Orchestrator {
     const startTime = Date.now();
     const { query, location, budget, preferences, transparency } = options;
 
+    // IMMEDIATE: Stream thinking message before any LLM call
+    // This gives instant feedback to the user
+    const quickThinking = this.generateQuickThinkingMessage(query, location);
+    transparency?.thinking(quickThinking);
+
     // Initialize shared caches to prevent duplicate results across agent calls
     const seenUrls = new Set<string>();
     const seenPlaceIds = new Set<string>();
@@ -121,13 +126,15 @@ export class Orchestrator {
       seenPlaceIds
     };
 
-    // Phase 1: Create execution plan - let AI generate the opening message
+    // Phase 1: Create execution plan (runs while user sees thinking message)
     const plan = await this.createPlan(query, location, budget);
     console.log('[Orchestrator] Plan created:', JSON.stringify(plan, null, 2));
 
-    // Use AI-generated thinking message or fall back to generic
-    const thinkingMessage = (plan as any).thinkingMessage || `Looking into ${query}...`;
-    transparency?.thinking(thinkingMessage);
+    // Update with AI-generated thinking message if better
+    const thinkingMessage = (plan as any).thinkingMessage;
+    if (thinkingMessage && thinkingMessage !== quickThinking) {
+      transparency?.thinking(thinkingMessage);
+    }
 
     // Show the AI's search strategy with specific details
     const searchFocus = (plan as any).searchFocus || [];
@@ -196,8 +203,10 @@ export class Orchestrator {
         break;
       }
 
-      // Request additional searches if needed
-      if (evaluation.additionalQueries && evaluation.additionalQueries.length > 0) {
+      // SMARTER ROUND 2: Only request more if confidence is low AND we have specific actionable gaps
+      const shouldRequestMore = this.shouldRequestMoreSearches(evaluation, results);
+      
+      if (shouldRequestMore && evaluation.additionalQueries && evaluation.additionalQueries.length > 0) {
         // Use AI-generated message about what more is needed
         const needsMoreMessage = evaluation.needsMoreMessage || 'Looking for more information...';
         transparency?.thinking(needsMoreMessage);
@@ -217,6 +226,8 @@ export class Orchestrator {
 
         results = this.mergeResults(results, additionalResults);
       } else {
+        // Even if not "sufficient", we have enough to work with
+        console.log(`[Orchestrator] Skipping round 2: confidence=${confidence}, gaps not actionable`);
         break;
       }
     }
@@ -288,6 +299,83 @@ export class Orchestrator {
         ]
       };
     }
+  }
+
+  /**
+   * Generate a quick thinking message immediately (no LLM call)
+   * This gives instant feedback while planning runs
+   */
+  private generateQuickThinkingMessage(query: string, location?: string): string {
+    const queryLower = query.toLowerCase();
+    const locationPart = location ? ` in ${this.extractCity(location)}` : '';
+    
+    // Extract key topic from query
+    if (queryLower.includes('coffee')) return `Coffee spots${locationPart}... let me dig in`;
+    if (queryLower.includes('restaurant') || queryLower.includes('dinner') || queryLower.includes('food')) 
+      return `Food${locationPart}... checking what's good`;
+    if (queryLower.includes('bar') || queryLower.includes('drinks')) 
+      return `Drinks${locationPart}... let me see what I can find`;
+    if (queryLower.includes('date')) return `Date ideas${locationPart}... on it`;
+    if (queryLower.includes('hike') || queryLower.includes('hiking') || queryLower.includes('outdoor')) 
+      return `Outdoor spots${locationPart}... looking into it`;
+    
+    // Generic fallback
+    return `Looking into ${query.slice(0, 30)}${query.length > 30 ? '...' : ''}${locationPart}`;
+  }
+
+  /**
+   * Extract city name from full location string
+   */
+  private extractCity(location: string): string {
+    const parts = location.split(',').map(p => p.trim());
+    if (parts.length >= 2) {
+      return parts[1].replace(/\s+(AB|BC|ON|QC|SK|MB|NS|NB|NL|PE|NT|YT|NU|CA|USA?)$/i, '').trim();
+    }
+    return location.split(',')[0].trim();
+  }
+
+  /**
+   * Decide if we should request more searches (smarter round 2)
+   * Only returns true if confidence is low AND we have actionable gaps
+   */
+  private shouldRequestMoreSearches(evaluation: any, results: CombinedResults): boolean {
+    // If confidence is high enough, don't bother with round 2
+    if (evaluation.confidence >= 6) {
+      console.log('[Orchestrator] Confidence >= 6, skipping additional searches');
+      return false;
+    }
+    
+    // Check if we have at least some results from each source
+    const hasPlaces = (results.places?.results?.length || 0) > 0;
+    const hasWeb = (results.web?.results?.length || 0) > 0;
+    const hasReddit = (results.reddit?.results?.length || 0) > 0;
+    
+    // If we have results from all sources but confidence is still low,
+    // another round probably won't help much
+    if (hasPlaces && hasWeb && hasReddit && evaluation.confidence >= 4) {
+      console.log('[Orchestrator] Have results from all sources, confidence okay, skipping round 2');
+      return false;
+    }
+    
+    // Check if gaps are actionable (specific enough to search for)
+    const gaps = evaluation.gaps || [];
+    const hasActionableGap = gaps.some((gap: string) => {
+      const gapLower = gap.toLowerCase();
+      // Actionable gaps mention specific missing info
+      return gapLower.includes('no ') || 
+             gapLower.includes('missing') || 
+             gapLower.includes('need more') ||
+             gapLower.includes('couldn\'t find') ||
+             gapLower.includes('zero results');
+    });
+    
+    if (!hasActionableGap) {
+      console.log('[Orchestrator] No actionable gaps identified, skipping round 2');
+      return false;
+    }
+    
+    // Confidence is low AND we have actionable gaps - do round 2
+    return true;
   }
 
   /**

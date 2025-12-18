@@ -32,6 +32,25 @@ export class WebSearchAgent extends BaseToolAgent {
   // Store context for access in search method
   private currentContext: AgentContext | null = null;
 
+  /**
+   * Early exit heuristic: If we have 5+ articles from different sources, skip LLM eval
+   */
+  protected checkEarlyExit(results: any[], context: AgentContext): any[] | null {
+    if (results.length < 5) return null;
+    
+    // Count unique sources
+    const sources = new Set(results.map((r: any) => r.source).filter(Boolean));
+    
+    // Need at least 4 different sources to early exit
+    if (sources.size >= 4 && results.length >= 5) {
+      console.log(`[WebSearchAgent] Early exit: ${results.length} results from ${sources.size} sources`);
+      // Return top 8 results
+      return results.slice(0, 8);
+    }
+    
+    return null;
+  }
+
   protected getInitialParams(context: AgentContext): Record<string, any> {
     // Store context for use in search
     this.currentContext = context;

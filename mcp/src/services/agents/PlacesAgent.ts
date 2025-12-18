@@ -35,6 +35,28 @@ export class PlacesAgent extends BaseToolAgent {
   // Store context for access in search method
   private currentContext: AgentContext | null = null;
 
+  /**
+   * Early exit heuristic: If we have 6+ well-rated places, skip LLM eval
+   */
+  protected checkEarlyExit(results: any[], context: AgentContext): any[] | null {
+    if (results.length < 6) return null;
+    
+    // Count places with good ratings (4.0+)
+    const wellRated = results.filter((r: any) => r.rating && r.rating >= 4.0);
+    
+    // Need at least 6 well-rated places to early exit
+    if (wellRated.length >= 6) {
+      console.log(`[PlacesAgent] Early exit: ${wellRated.length} well-rated places found`);
+      // Return top 10 sorted by rating
+      return results
+        .filter((r: any) => r.rating && r.rating >= 3.5)
+        .sort((a: any, b: any) => (b.rating || 0) - (a.rating || 0))
+        .slice(0, 10);
+    }
+    
+    return null;
+  }
+
   protected getInitialParams(context: AgentContext): Record<string, any> {
     // Store context for use in search
     this.currentContext = context;

@@ -8,6 +8,7 @@ export interface AgentResult {
     totalApiCalls: number;
     processingTime: number;
     errors?: ErrorRecord[];
+    earlyExit?: boolean;
   };
 }
 
@@ -76,6 +77,17 @@ export abstract class BaseToolAgent {
   protected abstract getInitialParams(context: AgentContext): Record<string, any> | Promise<Record<string, any>>;
 
   /**
+   * Heuristic check to see if results are "clearly good" and we can skip LLM eval.
+   * Override in subclasses for agent-specific logic.
+   * Returns extracted results if early exit, null otherwise.
+   */
+  protected checkEarlyExit(results: any[], context: AgentContext): any[] | null {
+    // Default: no early exit, always do LLM eval
+    // Subclasses override this with their own heuristics
+    return null;
+  }
+
+  /**
    * Main execution loop with iterative refinement and error feedback
    */
   async execute(context: AgentContext): Promise<AgentResult> {
@@ -110,6 +122,21 @@ export abstract class BaseToolAgent {
           params = this.adjustParamsAfterError(params, errorRecord);
           continue;
         }
+      }
+
+      // EARLY EXIT CHECK: If results are clearly good, skip LLM eval
+      const earlyExitResults = this.checkEarlyExit(allResults, context);
+      if (earlyExitResults !== null) {
+        console.log(`[${this.name}] Early exit: results passed heuristic check, skipping LLM eval`);
+        return {
+          results: earlyExitResults,
+          iterations: iteration,
+          metadata: {
+            totalApiCalls,
+            processingTime: Date.now() - startTime,
+            earlyExit: true
+          }
+        };
       }
 
       // Evaluation phase - pass error history for adaptive behavior
