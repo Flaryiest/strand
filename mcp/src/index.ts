@@ -98,16 +98,25 @@ app.post('/chat/stream', async (req: Request, res: Response) => {
 
     // Set headers for Server-Sent Events
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    res.flushHeaders(); // Send headers immediately
 
     // Create transparency layer for this conversation
     const transparency = new TransparencyLayer();
 
-    // Listen to all transparency events and forward them as SSE
-    transparency.on('step', (event) => {
+    // Helper to write and flush SSE event
+    const writeSSE = (event: any) => {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
-    });
+      // Force flush if available (depends on Node.js version and compression middleware)
+      if (typeof (res as any).flush === 'function') {
+        (res as any).flush();
+      }
+    };
+
+    // Listen to all transparency events and forward them as SSE
+    transparency.on('step', writeSSE);
 
     // Extract the latest user message as the query
     const latestUserMessage = messages

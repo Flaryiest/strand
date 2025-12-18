@@ -109,7 +109,7 @@ export class Orchestrator {
     const { query, location, budget, preferences, transparency } = options;
 
     // IMMEDIATE: Stream thinking message before any LLM call
-    // This gives instant feedback to the user
+    // This gives instant feedback to the user (will be replaced by AI message)
     const quickThinking = this.generateQuickThinkingMessage(query, location);
     transparency?.thinking(quickThinking);
 
@@ -130,32 +130,26 @@ export class Orchestrator {
     const plan = await this.createPlan(query, location, budget);
     console.log('[Orchestrator] Plan created:', JSON.stringify(plan, null, 2));
 
-    // Update with AI-generated thinking message if better
-    const thinkingMessage = (plan as any).thinkingMessage;
-    if (thinkingMessage && thinkingMessage !== quickThinking) {
-      transparency?.thinking(thinkingMessage);
+    // Send ONE combined message with the AI's plan (replaces quick thinking)
+    const thinkingMessage = (plan as any).thinkingMessage || '';
+    const reasoning = plan.reasoning || '';
+    
+    // Combine into a single coherent update
+    const planMessage = thinkingMessage 
+      ? `${thinkingMessage}\n\n${reasoning}`
+      : reasoning;
+    
+    if (planMessage) {
+      transparency?.analyzing(planMessage, {
+        searchFocus: (plan as any).searchFocus || [],
+        agents: plan.agents.map((a: any) => ({
+          name: a.name,
+          lookingFor: a.lookingFor || a.goal
+        }))
+      });
     }
 
-    // Show the AI's search strategy with specific details
-    const searchFocus = (plan as any).searchFocus || [];
-    const agentDetails = plan.agents.map((a: any) => ({
-      name: a.name,
-      lookingFor: a.lookingFor || a.goal
-    }));
-    
-    transparency?.analyzing(plan.reasoning, {
-      searchFocus,
-      agents: agentDetails
-    });
-
-    // Phase 2: Execute agents in parallel - show what each agent is looking for
-    const searchDescription = plan.agents
-      .map((a: any) => a.lookingFor || a.goal)
-      .filter(Boolean)
-      .slice(0, 2)
-      .join(', then ');
-    transparency?.thinking(searchDescription ? `Searching for ${searchDescription}...` : 'Gathering information from multiple sources...');
-    
+    // Phase 2: Execute agents in parallel (tool indicators will show progress)
     let results = await this.executeAgentsParallel(plan.agents, context, transparency);
 
     // Phase 3: Evaluate combined results and potentially request more
@@ -172,21 +166,6 @@ export class Orchestrator {
       confidence = evaluation.confidence;
       topRecommendations = evaluation.topRecommendations;
 
-      // Use AI-generated analysis message with specific findings
-      const analysisMessage = evaluation.analysisMessage || 'Looking at what I found...';
-      const interestingFindings = evaluation.interestingFindings || [];
-      
-      transparency?.analyzing(analysisMessage, {
-        sufficient: evaluation.sufficient,
-        confidence: evaluation.confidence,
-        interestingFindings,
-        topPicks: (evaluation.topRecommendations || []).slice(0, 3).map((r: any) => ({
-          name: r?.name,
-          whyPicked: r?.whyPicked || r?.highlights?.[0]
-        })),
-        gaps: evaluation.gaps
-      });
-
       console.log(`[Orchestrator] Round ${round} evaluation:`, {
         sufficient: evaluation.sufficient,
         confidence: evaluation.confidence,
@@ -194,12 +173,15 @@ export class Orchestrator {
       });
 
       if (evaluation.sufficient) {
-        // Generate a specific deciding message based on what was found
+        // Only show analysis message if we have interesting findings to share
+        const analysisMessage = evaluation.analysisMessage;
         const topPick = evaluation.topRecommendations?.[0];
-        const decidingMessage = topPick 
-          ? `${topPick.name} is standing out - ${topPick.whyPicked || 'strong reviews across sources'}. Let me put together the full picture...`
-          : 'I have a good sense of the options now. Let me organize my recommendations...';
-        transparency?.deciding(decidingMessage, analysisMessage);
+        
+        if (analysisMessage && topPick) {
+          // One message combining analysis and decision
+          const decidingMessage = `${analysisMessage} ${topPick.name} is standing out.`;
+          transparency?.deciding(decidingMessage, '');
+        }
         break;
       }
 
@@ -207,8 +189,8 @@ export class Orchestrator {
       const shouldRequestMore = this.shouldRequestMoreSearches(evaluation, results);
       
       if (shouldRequestMore && evaluation.additionalQueries && evaluation.additionalQueries.length > 0) {
-        // Use AI-generated message about what more is needed
-        const needsMoreMessage = evaluation.needsMoreMessage || 'Looking for more information...';
+        // Brief message about needing more info (only if we're actually doing round 2)
+        const needsMoreMessage = evaluation.needsMoreMessage || 'Digging a bit deeper...';
         transparency?.thinking(needsMoreMessage);
         
         const additionalPlans = evaluation.additionalQueries.map((q: any) => ({
@@ -233,12 +215,14 @@ export class Orchestrator {
     }
 
     // Phase 4: Synthesize final response with structured itinerary
-    // Generate a contextual final message based on what we found
-    const topPick = lastEvaluation?.topRecommendations?.[0];
-    const finalThinkingMessage = topPick
-      ? `Alright, ${topPick.name} is my top pick. Working out the details...`
-      : 'Pulling together the best options I found...';
-    transparency?.deciding(finalThinkingMessage, lastEvaluation?.analysisMessage || 'Analyzing the data...');
+    // Only send a message if we didn't already send a deciding message above
+    if (!lastEvaluation?.sufficient) {
+      const topPick = lastEvaluation?.topRecommendations?.[0];
+      const finalThinkingMessage = topPick
+        ? `${topPick.name} looks like a solid choice. Putting together my recommendations.`
+        : 'Organizing the best options I found.';
+      transparency?.deciding(finalThinkingMessage, '');
+    }
     
     // Generate both structured itinerary and text summary
     const { response, itinerary } = await this.synthesizeWithItinerary(
@@ -304,23 +288,33 @@ export class Orchestrator {
   /**
    * Generate a quick thinking message immediately (no LLM call)
    * This gives instant feedback while planning runs
+   * NOTE: These get REPLACED by AI-generated messages, so keep them short/generic
    */
   private generateQuickThinkingMessage(query: string, location?: string): string {
     const queryLower = query.toLowerCase();
-    const locationPart = location ? ` in ${this.extractCity(location)}` : '';
+    const city = location ? this.extractCity(location) : '';
     
-    // Extract key topic from query
-    if (queryLower.includes('coffee')) return `Coffee spots${locationPart}... let me dig in`;
-    if (queryLower.includes('restaurant') || queryLower.includes('dinner') || queryLower.includes('food')) 
-      return `Food${locationPart}... checking what's good`;
-    if (queryLower.includes('bar') || queryLower.includes('drinks')) 
-      return `Drinks${locationPart}... let me see what I can find`;
-    if (queryLower.includes('date')) return `Date ideas${locationPart}... on it`;
-    if (queryLower.includes('hike') || queryLower.includes('hiking') || queryLower.includes('outdoor')) 
-      return `Outdoor spots${locationPart}... looking into it`;
+    // Short, complete sentences (no trailing "...")
+    // These will be replaced by the AI's thinkingMessage from planning
+    if (queryLower.includes('coffee')) {
+      return city ? `Finding coffee spots in ${city}.` : 'Looking up coffee spots.';
+    }
+    if (queryLower.includes('restaurant') || queryLower.includes('dinner') || queryLower.includes('food')) {
+      return city ? `Checking food options in ${city}.` : 'Looking at food options.';
+    }
+    if (queryLower.includes('bar') || queryLower.includes('drinks')) {
+      return city ? `Finding drink spots in ${city}.` : 'Looking for drink spots.';
+    }
+    if (queryLower.includes('date')) {
+      return city ? `Finding date ideas in ${city}.` : 'Looking at date ideas.';
+    }
+    if (queryLower.includes('hike') || queryLower.includes('hiking') || queryLower.includes('outdoor')) {
+      return city ? `Checking outdoor spots near ${city}.` : 'Looking at outdoor options.';
+    }
     
-    // Generic fallback
-    return `Looking into ${query.slice(0, 30)}${query.length > 30 ? '...' : ''}${locationPart}`;
+    // Generic fallback - short and complete
+    const shortQuery = query.length > 25 ? query.slice(0, 25) + '...' : query;
+    return city ? `Looking into "${shortQuery}" in ${city}.` : `Looking into "${shortQuery}".`;
   }
 
   /**
