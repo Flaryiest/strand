@@ -1,2 +1,9 @@
 .DS_Store
 .env
+.env.local
+.env.*.local
+
+# Local development config
+api/.env.local
+web/.env.local
+mcp/.env.local
