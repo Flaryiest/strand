@@ -811,7 +811,7 @@ export class Orchestrator {
     }
 
     const topRec = recommendations[0];
-    return `I found some interesting options for you. ${topRec.name} stands out with strong reviews. Here's what I've put together:`;
+    return `I found some interesting options for you. ${topRec.name} stands out with strong reviews. Here's what I've put together:\n\n`;
   }
 
   /**
