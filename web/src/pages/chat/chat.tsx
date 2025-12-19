@@ -182,6 +182,7 @@ export default function ChatPage() {
         stopEventSource();
         setCurrentConversation(null);
         setShowInitialUI(true);
+        setIsPublicView(false);
         return;
       }
 
