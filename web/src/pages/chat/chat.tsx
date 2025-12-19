@@ -18,17 +18,12 @@ export default function ChatPage() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const { location, detectLocation } = useLocationStore();
   const {
-    conversationUuid,
-    messages,
-    isStreaming,
-    streamingEvents,
-    streamingItinerary,
-    error,
+    currentConversationUuid,
+    getCurrentStreamState,
+    getCurrentMessages,
     conversations,
     isLoadingConversations,
-    activeAssistantMessageId,
-    setConversationId,
-    setConversationUuid,
+    setCurrentConversation,
     setConversations,
     setLoadingConversations,
     setActiveRun,
@@ -40,6 +35,16 @@ export default function ChatPage() {
     setError,
     reset
   } = useChatStore();
+
+  // Get current conversation state
+  const streamState = getCurrentStreamState();
+  const messages = getCurrentMessages();
+  const conversationUuid = currentConversationUuid;
+  const isStreaming = streamState?.isStreaming ?? false;
+  const streamingEvents = streamState?.streamingEvents ?? [];
+  const streamingItinerary = streamState?.streamingItinerary ?? null;
+  const activeAssistantMessageId = streamState?.activeAssistantMessageId ?? null;
+  const error = streamState?.error ?? null;
 
   const [activeView, setActiveView] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -114,16 +119,25 @@ export default function ChatPage() {
 
         if (eventData.type === 'done') {
           // Process the done event first to capture the itinerary
-          addStreamEvent(eventData);
+          const convUuid = useChatStore.getState().currentConversationUuid;
+          if (convUuid) {
+            addStreamEvent(convUuid, eventData);
+            completeStreaming(convUuid);
+          }
           sessionStorage.removeItem(runLastIdStorageKey(runId));
-          completeStreaming();
           refreshConversations();
           stopEventSource();
         } else if (eventData.type === 'error') {
-          setError(eventData.data?.message || 'Stream error');
+          const convUuid = useChatStore.getState().currentConversationUuid;
+          if (convUuid) {
+            setError(convUuid, eventData.data?.message || 'Stream error');
+          }
           stopEventSource();
         } else {
-          addStreamEvent(eventData);
+          const convUuid = useChatStore.getState().currentConversationUuid;
+          if (convUuid) {
+            addStreamEvent(convUuid, eventData);
+          }
         }
       } catch (e) {
         console.error('EventSource parse error:', e);
@@ -166,7 +180,7 @@ export default function ChatPage() {
           reset();
         }
         stopEventSource();
-        setActiveRun(null);
+        setCurrentConversation(null);
         setShowInitialUI(true);
         return;
       }
@@ -188,6 +202,7 @@ export default function ChatPage() {
           // Only (re)attach if we aren't already attached.
           if (!isEventSourceActive()) {
             resumeRunStreaming(
+              chatId,
               runId,
               lastAssistant.id,
               lastAssistant.content || ''
@@ -196,7 +211,9 @@ export default function ChatPage() {
           }
         } else {
           stopEventSource();
-          setActiveRun(null);
+          if (chatId) {
+            setActiveRun(chatId, null);
+          }
         }
 
         return;
@@ -214,9 +231,9 @@ export default function ChatPage() {
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.conversation) {
-              setConversationId(data.conversation.id);
-              setConversationUuid(data.conversation.uuid);
+              setCurrentConversation(data.conversation.uuid, data.conversation.id);
               setMessages(
+                data.conversation.uuid,
                 data.conversation.messages.map((msg: any) => ({
                   id: msg.id,
                   role: msg.role,
@@ -225,7 +242,8 @@ export default function ChatPage() {
                   itinerary: msg.metadata?.itinerary || undefined,
                   metadata: msg.metadata || undefined,
                   createdAt: msg.createdAt
-                }))
+                })),
+                data.conversation.id
               );
               setShowInitialUI(false);
               setIsPublicView(false);
@@ -241,6 +259,7 @@ export default function ChatPage() {
                 lastAssistant?.metadata?.runId
               ) {
                 resumeRunStreaming(
+                  data.conversation.uuid,
                   lastAssistant.metadata.runId,
                   lastAssistant.id,
                   lastAssistant.content || ''
@@ -248,7 +267,7 @@ export default function ChatPage() {
                 startEventSource(lastAssistant.metadata.runId, true); // Replay all events from start on refresh
               } else {
                 stopEventSource();
-                setActiveRun(null);
+                setActiveRun(data.conversation.uuid, null);
               }
 
               // Brief delay for smooth transition
@@ -263,8 +282,9 @@ export default function ChatPage() {
         if (publicResponse.ok) {
           const data = await publicResponse.json();
           if (data.success && data.conversation) {
-            setConversationUuid(data.conversation.uuid);
+            setCurrentConversation(data.conversation.uuid);
             setMessages(
+              data.conversation.uuid,
               data.conversation.messages.map((msg: any) => ({
                 id: msg.id,
                 role: msg.role,
@@ -286,12 +306,16 @@ export default function ChatPage() {
         }
 
         // Conversation not found
-        setError('Conversation not found');
+        if (chatId) {
+          setError(chatId, 'Conversation not found');
+        }
         navigate('/chat');
         setIsTransitioning(false);
       } catch (err) {
         console.error('Error loading conversation:', err);
-        setError('Failed to load conversation');
+        if (chatId) {
+          setError(chatId, 'Failed to load conversation');
+        }
         setIsTransitioning(false);
       }
     };
@@ -456,7 +480,8 @@ export default function ChatPage() {
         const authCheck = useAuthStore.getState().isAuthenticated;
 
         if (!authCheck) {
-          setError('Session expired. Please log in again.');
+          // Show error in UI via local state since we don't have a conversation
+          console.error('Session expired. Please log in again.');
           setTimeout(() => navigate('/login'), 2000);
         }
         return null;
@@ -488,8 +513,8 @@ export default function ChatPage() {
       return { id: data.conversation.id, uuid: data.conversation.uuid };
     } catch (err) {
       console.error('Create conversation error:', err);
-
-      setError(
+      // Can't set error without conversation, just log it
+      console.error(
         err instanceof Error
           ? err.message
           : 'Failed to start conversation. Please try refreshing the page.'
@@ -512,8 +537,7 @@ export default function ChatPage() {
     if (!convUuid) {
       const newConv = await createConversation();
       if (!newConv) return;
-      setConversationId(newConv.id);
-      setConversationUuid(newConv.uuid);
+      setCurrentConversation(newConv.uuid, newConv.id);
       convUuid = newConv.uuid;
 
       // Navigate to the new chat URL
@@ -521,7 +545,7 @@ export default function ChatPage() {
     }
 
     // Add user message to UI
-    addUserMessage(trimmedInput);
+    addUserMessage(convUuid, trimmedInput);
     setInputValue('');
 
     // Start run from API, then subscribe via EventSource
@@ -548,11 +572,13 @@ export default function ChatPage() {
         throw new Error(data.error || 'Failed to start run');
       }
 
-      setActiveRun(data.runId, data.assistantMessageId || null);
+      setActiveRun(convUuid, data.runId, data.assistantMessageId || null);
       startEventSource(data.runId);
     } catch (err) {
       console.error('Stream error:', err);
-      setError('Failed to get response. Please try again.');
+      if (convUuid) {
+        setError(convUuid, 'Failed to get response. Please try again.');
+      }
       stopEventSource();
     }
   };
