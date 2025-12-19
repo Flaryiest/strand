@@ -54,7 +54,7 @@ export abstract class BaseToolAgent {
   abstract name: string;
   abstract description: string;
   protected maxIterations = 3;
-  protected model = 'gpt-5-mini'; // Cost-optimized reasoning model for evaluations
+  protected model = 'gpt-5-nano'; // Cost-optimized reasoning model for evaluations
   protected reasoningEffort: 'none' | 'low' | 'medium' | 'high' | 'xhigh' = 'low';
   protected verbosity: 'low' | 'medium' | 'high' = 'low';
 
