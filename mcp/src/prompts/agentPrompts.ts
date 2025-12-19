@@ -189,7 +189,7 @@ The goal is FAST results, not exhaustive coverage. You can always get more data 
 Respond with ONLY valid JSON (no markdown):
 {
   "reasoning": "A natural, conversational explanation (1-2 sentences) of your search strategy that could be shown to the user. Mention specific things you'll look for. E.g., 'I'll check Google Maps for highly-rated matcha spots, then cross-reference with Reddit to see which ones locals actually recommend.'",
-  "thinkingMessage": "A brief, varied opening message acknowledging what the user wants (avoid generic phrases like 'Let me understand...'). E.g., 'Matcha in Vancouver - I know a few spots get mentioned a lot...' or 'Interesting choice! Let me dig into what's actually good around here.'",
+  "thinkingMessage": "A brief, varied opening message acknowledging what the user wants. Avoid generic phrases like 'Let me understand...'. Do NOT use em dashes (—). Use periods or commas instead. E.g., 'Matcha in Vancouver. I know a few spots get mentioned a lot.' or 'Interesting choice! Let me dig into what's actually good around here.'",
   "itemCount": number,
   "searchFocus": ["specific things to look for, e.g. 'ceremonial-grade matcha', 'cozy atmosphere', 'hidden gems'"],
   "agents": [
